@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SamadhanSetu — From real problems to real solutions</title>
+  <meta name="description" content="Citizens report real societal problems, AI assists screening and matching, and university students build verified solutions — with human review at every decision.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero band">
+      <div class="container hero__inner">
+        <span class="eyebrow">Civic problem solving, reviewed by people</span>
+        <h1>Real problems, reported by citizens.<br><em>Real solutions, built by students.</em></h1>
+        <p class="hero__lead lead">
+          SamadhanSetu connects the neighbourhood problem a citizen describes to a university
+          student team that can build and verify a solution. AI helps summarise and match —
+          a human reviewer approves every decision.
+        </p>
+        <div class="hero__actions btn-group">
+          <a class="btn btn--primary btn--pill btn--lg" href="/submit.html">Report a problem</a>
+          <a class="btn btn--secondary btn--pill btn--lg" href="/challenges.html">Explore approved problems</a>
+        </div>
+        <div class="search-pill" role="search" style="max-width:640px">
+          <div class="input-group">
+            <span class="input-group__icon" aria-hidden="true">⌕</span>
+            <label class="visually-hidden" for="hero-search">Search problems</label>
+            <input class="input" id="hero-search" type="search" placeholder="Search problems — water, street lighting, waste…">
+          </div>
+          <button class="btn btn--primary btn--pill" id="hero-search-btn">Search</button>
+        </div>
+        <p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">
+          This is a demonstration deployment. Seeded records are clearly labelled
+          <span class="tag-demo">Demo data</span>.
+        </p>
+      </div>
+    </section>
+
+    <!-- Live stats from the real database -->
+    <section class="band band--soft">
+      <div class="container">
+        <div class="stat-row" id="home-stats" aria-live="polite">
+          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Approved problems</div></div>
+          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Active projects</div></div>
+          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Participating universities</div></div>
+          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Verified impact reports</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="band">
+      <div class="container">
+        <div class="section-head section-head--center">
+          <span class="eyebrow">The path from problem to solution</span>
+          <h2>Six steps, with a human gate at the decision</h2>
+          <p class="lead">AI never approves, rejects, or scores anything on its own. It assists; people decide.</p>
+        </div>
+        <ol class="flow" style="margin-top:var(--space-7)">
+          <li class="flow__item"><span class="flow__num">1</span><h3>Citizen submits</h3><p>The problem is stored exactly as written — never rewritten by AI.</p></li>
+          <li class="flow__item"><span class="flow__num">2</span><h3>AI screens</h3><p>Summarises the problem, finds missing details and flags government dependency.</p></li>
+          <li class="flow__item"><span class="flow__num">3</span><h3>Human decides</h3><p>A faculty or admin reviewer approves, declines, or asks clarifications, with a written reason.</p></li>
+          <li class="flow__item"><span class="flow__num">4</span><h3>University forms a team</h3><p>Deterministic skill-based matching proposes students; a mentor makes the call.</p></li>
+          <li class="flow__item"><span class="flow__num">5</span><h3>Students build &amp; report</h3><p>Tasks, milestones, evidence and weekly reports are tracked in the open.</p></li>
+          <li class="flow__item"><span class="flow__num">6</span><h3>Verified impact</h3><p>Results are recorded with their limitations — claims are never inflated.</p></li>
+        </ol>
+        <div style="margin-top:var(--space-6)">
+          <a class="btn btn--secondary" href="/how-it-works.html">Read the full process &amp; limitations</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured approved problems -->
+    <section class="band band--soft">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Open for student innovation</span>
+          <h2>Approved problems</h2>
+          <p class="lead">Problems a human reviewer cleared for a student team to work on.</p>
+        </div>
+        <div class="grid grid--3" id="featured-challenges" aria-live="polite">
+          <div class="card"><div class="skeleton skeleton--text"></div></div>
+          <div class="card"><div class="skeleton skeleton--text"></div></div>
+          <div class="card"><div class="skeleton skeleton--text"></div></div>
+        </div>
+        <div style="margin-top:var(--space-6)">
+          <a class="btn btn--ghost" href="/challenges.html">See all approved problems →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trust / honesty -->
+    <section class="band band--dark">
+      <div class="container split">
+        <div>
+          <span class="eyebrow">Built honestly</span>
+          <h2>What this platform does — and does not — claim</h2>
+          <p class="lead">
+            This is a working demonstration. It is careful about what it says it can do.
+          </p>
+        </div>
+        <div>
+          <ul class="feature-list">
+            <li><span class="tick" aria-hidden="true">✓</span><span><strong>AI assists, humans decide.</strong> Screening produces a recommendation; the authoritative record is a human review with a written reason.</span></li>
+            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Deterministic matching.</strong> Student matching uses transparent weighted criteria you can inspect — not a black box.</span></li>
+            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Honest search scope.</strong> Prior-solution search reads only this deployment's internal repository; it does not search the web.</span></li>
+            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Labelled demo data.</strong> Every seeded statistic, score and sponsorship carries a visible <span class="tag-demo">Demo data</span> tag.</span></li>
+            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Limitations stated.</strong> Impact reports record what was and was not verified, including tests still pending.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="band">
+      <div class="container section-head section-head--center">
+        <h2>Which side of the bridge are you on?</h2>
+        <p class="lead">Report a problem, or help solve one. Both start with an account.</p>
+        <div class="btn-group" style="justify-content:center;margin-top:var(--space-5)">
+          <a class="btn btn--primary btn--pill btn--lg" href="/register.html">Create an account</a>
+          <a class="btn btn--secondary btn--pill btn--lg" href="/login.html">Sign in</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      function goSearch() {
+        var q = UI.qs("#hero-search").value.trim();
+        window.location.href = "/challenges.html" + (q ? "?q=" + encodeURIComponent(q) : "");
+      }
+      UI.qs("#hero-search-btn").addEventListener("click", goSearch);
+      UI.qs("#hero-search").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); goSearch(); }
+      });
+
+      App.ready.then(async function () {
+        // Featured problems
+        try {
+          var res = await API.get("/api/challenges", { page: 1, page_size: 3 });
+          var host = UI.qs("#featured-challenges");
+          if (!res.items.length) {
+            host.innerHTML = UI.emptyState("🌱", "No approved problems yet", "Approved problems will appear here once a reviewer clears them.");
+            return;
+          }
+          host.innerHTML = res.items.map(function (c) {
+            return '<a class="card card--hover card--link" href="/challenge.html?id=' + c.id + '">' +
+              '<div class="card__header">' + UI.badge(c.status) +
+              '<span class="chip" style="pointer-events:none">' + UI.esc(UI.titleCase(c.category)) + '</span></div>' +
+              '<h3 class="card__title">' + UI.esc(c.title) + '</h3>' +
+              '<p class="card__body">' + UI.esc((c.description || "").slice(0, 150)) + '…</p>' +
+              '<div class="card__footer muted" style="font-size:var(--fs-fine)">' +
+              (c.location ? "📍 " + UI.esc(c.location) + " · " : "") + UI.fmtDate(c.created_at) + '</div>' +
+              '</a>';
+          }).join("");
+        } catch (e) {
+          UI.qs("#featured-challenges").innerHTML = UI.errorState(e.message);
+        }
+
+        // Stats
+        try {
+          var stats = await API.get("/api/public/stats").catch(function () { return null; });
+          var host = UI.qs("#home-stats");
+          var values = [
+            stats ? stats.approved_challenges : "—",
+            stats ? stats.active_projects : "—",
+            stats ? stats.universities : "—",
+            stats ? stats.verified_impact : "—",
+          ];
+          UI.qsa(".stat__value", host).forEach(function (el, i) { el.textContent = values[i]; });
+        } catch (e) { /* leave dashes */ }
+      });
+    })();
+  </script>
+</body>
+</html>

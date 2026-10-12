@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Report a problem — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container container--prose" style="padding-block:var(--space-7)">
+    <div class="page-head">
+      <span class="eyebrow">Report a problem</span>
+      <h1>What's happening in your community?</h1>
+      <p class="lead">Describe it the way you would to a neighbour. You do not need to write a proposal —
+        SamadhanSetu turns your words into a clear summary for reviewers, and your own words are kept exactly
+        as you wrote them.</p>
+    </div>
+
+    <div id="gate"></div>
+
+    <div id="wizard" hidden>
+      <div id="stepper"></div>
+
+      <form id="report-form" novalidate>
+        <!-- ---------------------------------------------------------------- -->
+        <section class="step-panel panel card" data-step="1">
+          <div class="panel__head">
+            <h2 class="panel__title">Step 1 · Describe the problem</h2>
+            <p class="panel__sub">Only this step is required. Everything else is optional.</p>
+          </div>
+          <div class="panel__body stack">
+            <div class="field" data-field="description">
+              <label class="field__label" for="description">What's happening in your community?
+                <span aria-hidden="true">*</span></label>
+              <textarea class="input" id="description" name="description" rows="6" required
+                        maxlength="8000"
+                        placeholder="Streetlights in our area stop working frequently, making it difficult to travel safely at night."></textarea>
+              <span class="field__hint">
+                <span id="desc-count">0</span>/8000 characters · at least 20 needed.
+                Spelling and grammar do not matter.
+              </span>
+              <span class="field__error" role="alert"></span>
+              <button type="button" class="btn btn--secondary btn--sm" id="voice-btn" hidden
+                      aria-pressed="false">🎤 Speak instead</button>
+            </div>
+
+            <fieldset class="fieldset">
+              <legend class="fieldset__legend">Which area does this belong to? <span aria-hidden="true">*</span></legend>
+              <div class="choice-grid" id="domain-grid" role="radiogroup" aria-label="Problem domain"></div>
+              <span class="field__error" role="alert" data-error-for="domain"></span>
+            </fieldset>
+          </div>
+          <div class="form-actions">
+            <span class="muted" style="font-size:var(--fs-caption)">Takes about a minute.</span>
+            <button class="btn btn--primary btn--pill" type="button" id="next-1">Continue → location</button>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------------------- -->
+        <section class="step-panel panel card" data-step="2" hidden>
+          <div class="panel__head">
+            <h2 class="panel__title">Step 2 · Where and how big</h2>
+            <p class="panel__sub">The city is required so the platform can find similar reports nearby.
+              Impact and photos are optional — "I don't know" is a valid answer.</p>
+          </div>
+          <div class="panel__body stack">
+            <div class="form-grid">
+              <div class="field" data-field="city">
+                <label class="field__label" for="city">City <span aria-hidden="true">*</span></label>
+                <input class="input" id="city" name="city" list="city-options" maxlength="120"
+                       autocomplete="off" placeholder="Start typing, e.g. Pune">
+                <datalist id="city-options"></datalist>
+                <span class="field__hint">We do not read your device location — please type it.</span>
+                <span class="field__error" role="alert"></span>
+              </div>
+              <div class="field" data-field="locality">
+                <label class="field__label" for="locality">Area, ward or locality
+                  <span class="muted">(optional)</span></label>
+                <input class="input" id="locality" name="locality" maxlength="160" autocomplete="off"
+                       placeholder="e.g. Kothrud">
+              </div>
+            </div>
+
+            <div id="duplicate-box"></div>
+
+            <div class="field">
+              <span class="field__label" id="impact-legend">How big is the impact?</span>
+              <div class="segmented" id="impact-kinds" role="radiogroup" aria-labelledby="impact-legend"></div>
+            </div>
+
+            <div id="impact-fields" class="stack"></div>
+
+            <div class="field" data-field="evidence">
+              <span class="field__label">Photos of the problem <span class="muted">(optional)</span></span>
+              <div class="dropzone" id="dropzone" role="button" tabindex="0"
+                   aria-label="Add photos of the problem">
+                <div class="dropzone__icon" aria-hidden="true">📷</div>
+                <p class="dropzone__title">Drop photos here, or click to choose</p>
+                <p class="dropzone__hint" id="upload-hint">JPEG, PNG or WebP · up to 5 MB each · up to 6 photos</p>
+                <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple>
+              </div>
+              <ul class="upload-list" id="upload-list"></ul>
+              <span class="field__hint">Photos are private. Only you, reviewers and the project team can see
+                them, and location/GPS metadata is removed on upload.</span>
+            </div>
+
+            <details class="disclosure">
+              <summary>Add optional context (helps a reviewer)</summary>
+              <div class="disclosure__body stack">
+                <div class="field">
+                  <label class="field__label" for="affected_users">Who is affected?</label>
+                  <textarea class="input" id="affected_users" name="affected_users" rows="2"
+                            maxlength="1000" placeholder="e.g. residents on the lane, school children"></textarea>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="current_situation">What happens today?</label>
+                  <textarea class="input" id="current_situation" name="current_situation" rows="2"
+                            maxlength="3000" placeholder="e.g. complaints are logged but nothing changes"></textarea>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="desired_outcome">What would a good outcome look like?</label>
+                  <textarea class="input" id="desired_outcome" name="desired_outcome" rows="2"
+                            maxlength="3000"></textarea>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="constraints">Anything a solution must respect?</label>
+                  <textarea class="input" id="constraints" name="constraints" rows="2" maxlength="3000"
+                            placeholder="budget limits, no new construction, must work offline…"></textarea>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn--secondary" type="button" id="back-2">← Back</button>
+            <button class="btn btn--primary btn--pill" type="button" id="analyze-btn">Analyze my problem</button>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------------------- -->
+        <section class="step-panel panel card" data-step="3" hidden>
+          <div class="panel__head">
+            <h2 class="panel__title">Step 3 · Review the summary</h2>
+            <p class="panel__sub">Check that the simple summary matches what you meant. Nothing has been
+              saved or sent to a reviewer yet.</p>
+          </div>
+          <div class="panel__body" id="summary"></div>
+          <div class="form-actions">
+            <button class="btn btn--secondary" type="button" id="back-3">← Edit my report</button>
+            <button class="btn btn--primary btn--pill btn--lg" type="submit" id="submit-btn">
+              Submit problem</button>
+          </div>
+        </section>
+      </form>
+    </div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      var FALLBACK_DOMAINS = [
+        { key: "water", label: "Water and sanitation", icon: "🚰", hint: "Supply, quality, drains, sewage, flooding" },
+        { key: "agriculture", label: "Agriculture", icon: "🌾", hint: "Crops, irrigation, soil, livestock" },
+        { key: "environment", label: "Environment and waste", icon: "♻️", hint: "Garbage, plastic, pollution, air" },
+        { key: "transport", label: "Transportation", icon: "🚌", hint: "Buses, roads, traffic, access" },
+        { key: "education", label: "Education", icon: "🎓", hint: "Schools, learning, libraries" },
+        { key: "health", label: "Healthcare", icon: "🩺", hint: "Clinics, disease, hygiene" },
+        { key: "electricity", label: "Energy and electricity", icon: "💡", hint: "Power cuts, lighting, solar" },
+        { key: "safety", label: "Public safety", icon: "🛡️", hint: "Accidents, hazards, crime" },
+        { key: "accessibility", label: "Accessibility", icon: "♿", hint: "Disability access, inclusive design" },
+        { key: "other", label: "Community infrastructure", icon: "🏘️", hint: "Shared facilities, public spaces" },
+      ];
+
+      var FALLBACK_CITIES = ["Pune", "Mumbai", "Nagpur", "Nashik", "Bengaluru", "Chennai", "Hyderabad",
+        "Kolkata", "Delhi", "Ahmedabad", "Jaipur", "Lucknow", "Kanpur", "Indore", "Bhopal", "Patna",
+        "Surat", "Vadodara", "Coimbatore", "Kochi", "Thiruvananthapuram", "Visakhapatnam", "Vijayawada",
+        "Guwahati", "Bhubaneswar", "Raipur", "Ranchi", "Dehradun", "Chandigarh", "Amritsar", "Ludhiana",
+        "Jodhpur", "Udaipur", "Aurangabad", "Kolhapur", "Solapur", "Thane", "Navi Mumbai", "Mysuru",
+        "Mangaluru", "Madurai", "Tiruchirappalli", "Salem", "Warangal", "Guntur", "Jabalpur", "Gwalior"];
+
+      var IMPACT_UNITS = {
+        people_affected: ["people", "households", "residents", "students", "patients", "farmers"],
+        financial_loss: [],
+        time_lost: ["hours per day", "hours per week", "hours per trip", "days per month"],
+        area_affected: ["metres of road", "square metres", "acres", "hectares of land"],
+        environmental: [],
+        unknown: []
+      };
+      var CURRENCIES = ["INR", "USD", "EUR", "GBP"];
+
+      var REFERENCE = { domains: FALLBACK_DOMAINS, impact_kinds: [], upload: null };
+      var STATE = {
+        step: 1,
+        domain: "",
+        impactKind: "unknown",
+        requestId: "",
+        uploads: [],          // { key, file, name, size, progress, id, url, error }
+        preview: null,
+        submitting: false,
+        analyzedFor: ""       // fingerprint of what was analyzed, to avoid repeat calls
+      };
+
+      var STEPS = [
+        { label: "Describe", hint: "What is wrong" },
+        { label: "Location", hint: "Where and how big" },
+        { label: "Review", hint: "Check the summary" },
+      ];
+
+      // ---- helpers -----------------------------------------------------------
+
+      function newRequestId() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return "req-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+      }
+
+      function sessionRequestId() {
+        var key = "smds-report-session";
+        try {
+          var existing = sessionStorage.getItem(key);
+          if (existing) return existing;
+          var fresh = newRequestId();
+          sessionStorage.setItem(key, fresh);
+          return fresh;
+        } catch (e) {
+          return newRequestId();
+        }
+      }
+
+      function clearSessionRequestId() {
+        try { sessionStorage.removeItem("smds-report-session"); } catch (e) { /* ignore */ }
+      }
+
+      function el(id) { return UI.qs("#" + id); }
+
+      function setStep(n) {
+        STATE.step = n;
+        UI.qsa(".step-panel").forEach(function (p) {
+          p.hidden = String(p.dataset.step) !== String(n);
+        });
+        el("stepper").innerHTML = UI.stepper(STEPS, n);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function collect() {
+        return {
+          description: el("description").value.trim(),
+          category: STATE.domain || "other",
+          city: el("city").value.trim(),
+          locality: el("locality").value.trim(),
+          impact: collectImpact(),
+          affected_users: el("affected_users").value.trim(),
+          current_situation: el("current_situation").value.trim(),
+          desired_outcome: el("desired_outcome").value.trim(),
+          constraints: el("constraints").value.trim(),
+          client_request_id: STATE.requestId,
+        };
+      }
+
+      function collectImpact() {
+        var kind = STATE.impactKind;
+        var amountEl = el("impact-amount");
+        var unitEl = el("impact-unit");
+        var noteEl = el("impact-note");
+        var curEl = el("impact-currency");
+        var payload = {
+          kind: kind,
+          is_estimate: el("impact-estimate") ? el("impact-estimate").checked : true,
+          source: el("impact-source") ? el("impact-source").value.trim() : "",
+        };
+        if (kind === "unknown") {
+          payload.amount = null;
+        } else if (amountEl && amountEl.value !== "") {
+          payload.amount = Number(amountEl.value);
+        }
+        if (unitEl && unitEl.value) payload.unit = unitEl.value;
+        if (curEl && curEl.value) payload.currency = curEl.value;
+        if (noteEl && noteEl.value.trim()) payload.note = noteEl.value.trim();
+        return payload;
+      }
+
+      function fingerprint() {
+        var d = collect();
+        return [d.description, d.category, d.city, d.locality, JSON.stringify(d.impact)].join("|");
+      }
+
+      // ---- step 1 ------------------------------------------------------------
+
+      function renderDomains() {
+        var host = el("domain-grid");
+        host.innerHTML = REFERENCE.domains.map(function (d) {
+          return '<button type="button" class="choice" role="radio" aria-checked="false" data-key="' +
+            UI.esc(d.key) + '" data-label="' + UI.esc(d.label) + '">' +
+            '<span class="choice__icon" aria-hidden="true">' + UI.esc(d.icon || "✳️") + "</span>" +
+            '<span><span class="choice__label">' + UI.esc(d.label) + "</span>" +
+            '<span class="choice__hint">' + UI.esc(d.hint || "") + "</span></span></button>";
+        }).join("");
+        UI.qsa(".choice", host).forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            STATE.domain = btn.dataset.key;
+            UI.qsa(".choice", host).forEach(function (b) {
+              var on = b === btn;
+              b.classList.toggle("is-selected", on);
+              b.setAttribute("aria-checked", on ? "true" : "false");
+            });
+            UI.qsa('[data-error-for="domain"]').forEach(function (e) { e.textContent = ""; });
+            scheduleDuplicateCheck();
+          });
+        });
+      }
+
+      // Cities already present in this deployment's data, merged with a built-in
+      // list so a new deployment still has a usable searchable field.
+      var knownCities = [];
+
+      function renderCities() {
+        var list = FALLBACK_CITIES.slice();
+        var seen = {};
+        list.forEach(function (c) { seen[c.toLowerCase()] = true; });
+        knownCities.forEach(function (c) {
+          if (!seen[c.toLowerCase()]) { list.push(c); seen[c.toLowerCase()] = true; }
+        });
+        el("city-options").innerHTML = list.sort().map(function (c) {
+          return '<option value="' + UI.esc(c) + '"></option>';
+        }).join("");
+      }
+
+      function renderImpactKinds() {
+        var kinds = REFERENCE.impact_kinds.length ? REFERENCE.impact_kinds : [
+          { key: "people_affected", label: "People affected" },
+          { key: "financial_loss", label: "Estimated financial loss" },
+          { key: "time_lost", label: "Time lost" },
+          { key: "area_affected", label: "Area affected" },
+          { key: "environmental", label: "Environmental impact" },
+          { key: "unknown", label: "Other / Not sure" },
+        ];
+        el("impact-kinds").innerHTML = kinds.map(function (k) {
+          return '<button type="button" class="segmented__option" role="radio" aria-checked="false" data-kind="' +
+            UI.esc(k.key) + '">' + UI.esc(k.label) + "</button>";
+        }).join("");
+        UI.qsa(".segmented__option", el("impact-kinds")).forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            STATE.impactKind = btn.dataset.kind;
+            UI.qsa(".segmented__option", el("impact-kinds")).forEach(function (b) {
+              var on = b === btn;
+              b.classList.toggle("is-selected", on);
+              b.setAttribute("aria-checked", on ? "true" : "false");
+            });
+            renderImpactFields();
+          });
+        });
+      }
+
+      function renderImpactFields() {
+        var kind = STATE.impactKind;
+        var host = el("impact-fields");
+        if (kind === "unknown") {
+          host.innerHTML =
+            '<p class="muted" style="font-size:var(--fs-caption)">' +
+            "That is fine — reviewers will work with what you described. If you later learn a number " +
+            "(people, money, area or time), you can add it.</p>" +
+            '<div class="field"><label class="field__label" for="impact-note">Anything you can add ' +
+            '<span class="muted">(optional)</span></label>' +
+            '<input class="input" id="impact-note" maxlength="500"></div>';
+          return;
+        }
+
+        var units = IMPACT_UNITS[kind] || [];
+        var html = '<div class="form-grid">';
+        if (kind === "financial_loss") {
+          html +=
+            '<div class="field"><label class="field__label" for="impact-currency">Currency</label>' +
+            '<select class="select" id="impact-currency">' +
+            CURRENCIES.map(function (c) { return '<option value="' + c + '">' + c + "</option>"; }).join("") +
+            "</select></div>" +
+            '<div class="field"><label class="field__label" for="impact-amount">Amount ' +
+            '<span class="muted">(optional)</span></label>' +
+            '<input class="input" id="impact-amount" type="number" min="0" step="100" inputmode="numeric">' +
+            '<span class="field__hint">A rough figure is fine. It will be shown as an estimate.</span></div>';
+        } else if (kind === "environmental") {
+          html +=
+            '<div class="field" style="grid-column:1/-1"><label class="field__label" for="impact-note">' +
+            "What is the environmental effect?</label>" +
+            '<input class="input" id="impact-note" maxlength="500" ' +
+            'placeholder="e.g. plastic waste entering the canal every week"></div>';
+        } else {
+          html +=
+            '<div class="field"><label class="field__label" for="impact-amount">How much ' +
+            '<span class="muted">(optional)</span></label>' +
+            '<input class="input" id="impact-amount" type="number" min="0" step="1" inputmode="numeric"></div>' +
+            '<div class="field"><label class="field__label" for="impact-unit">Unit</label>' +
+            '<select class="select" id="impact-unit">' +
+            '<option value="">Not sure</option>' +
+            units.map(function (u) { return '<option value="' + UI.esc(u) + '">' + UI.esc(u) + "</option>"; }).join("") +
+            "</select></div>";
+        }
+        html += "</div>";
+        html +=
+          '<div class="field"><label class="field__label" for="impact-source">Where does this figure come ' +
+          'from? <span class="muted">(optional)</span></label>' +
+          '<input class="input" id="impact-source" maxlength="160" ' +
+          'placeholder="e.g. counted at the counter, or my own estimate"></div>' +
+          '<div class="field"><label class="field__label" for="impact-estimate">' +
+          '<input type="checkbox" id="impact-estimate" checked> This is my estimate, not a verified ' +
+          "measurement</label>" +
+          '<span class="field__hint">Leave this ticked unless you actually measured it. Either way, the ' +
+          "platform never presents a citizen figure as verified.</span></div>";
+        host.innerHTML = html;
+      }
+
+      // ---- duplicate box (step 2) -------------------------------------------
+
+      var scheduleDuplicateCheck = UI.debounce(function () { runDuplicateCheck(); }, 700);
+
+      function runDuplicateCheck() {
+        var data = collect();
+        if (!data.city || data.description.length < 20) { el("duplicate-box").innerHTML = ""; return; }
+        var host = el("duplicate-box");
+        host.innerHTML = UI.loading("Checking for similar reports in " + data.city + "…");
+        API.checkDuplicates({
+          description: data.description, city: data.city, locality: data.locality,
+          category: data.category, use_ai: false,
+        }).then(function (res) {
+          host.innerHTML = duplicateMarkup(res);
+        }).catch(function () {
+          host.innerHTML = "";
+        });
+      }
+
+      function duplicateMarkup(res) {
+        var items = (res && res.candidates) || [];
+        if (!items.length) {
+          return '<div class="insight insight--success"><p class="insight__label">No similar report found</p>' +
+            '<div class="insight__value">We did not find another report from this city that looks like ' +
+            "this one. Continue below.</div></div>";
+        }
+        var strong = items.filter(function (i) { return i.likely_duplicate; });
+        var head = strong.length
+          ? '<div class="insight insight--warn"><p class="insight__label">Possible duplicate</p>' +
+            '<div class="insight__value">' + strong.length +
+            (strong.length === 1 ? " report in this city looks very similar." : " reports in this city look very similar.") +
+            " You can still submit — a human reviewer decides whether reports are handled together. " +
+            '<a href="/challenge.html?id=' + strong[0].challenge_id + '" target="_blank" rel="noopener">' +
+            "Open the closest match</a>.</div>" +
+            '<p class="insight__note">' + UI.esc(res.method) + "</p></div>"
+          : '<div class="insight insight--muted"><p class="insight__label">Related reports</p>' +
+            '<div class="insight__value">Some reports from this city share wording or location with yours. ' +
+            "Have a look before submitting.</div></div>";
+        var cards = items.slice(0, 3).map(function (i) {
+          return '<div class="dup-card' + (i.likely_duplicate ? " dup-card--strong" : "") + '">' +
+            '<div class="dup-card__head"><span class="dup-card__title">' + UI.esc(i.title) + "</span>" +
+            '<span class="dup-card__score">' + Math.round(i.similarity * 100) + "%</span></div>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(UI.titleCase(i.category)) +
+            (i.locality ? " · " + UI.esc(i.locality) : "") + " · " + UI.esc(UI.titleCase(i.status)) + "</p>" +
+            '<ul class="dup-card__reasons">' + (i.reasons || []).map(function (r) {
+              return "<li>" + UI.esc(r) + "</li>";
+            }).join("") + "</ul>" +
+            '<a class="btn btn--ghost btn--sm" href="/challenge.html?id=' + i.challenge_id +
+            '" target="_blank" rel="noopener">View report</a></div>';
+        }).join("");
+        return head + '<div class="stack">' + cards + "</div>" +
+          '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(res.note) + "</p>";
+      }
+
+      // ---- evidence uploads -------------------------------------------------
+
+      function renderUploads() {
+        var list = el("upload-list");
+        if (!STATE.uploads.length) { list.innerHTML = ""; return; }
+        list.innerHTML = STATE.uploads.map(function (u) {
+          var progress = Math.round((u.progress || 0) * 100);
+          var meta = u.error
+            ? '<span class="muted" style="color:var(--color-error)">' + UI.esc(u.error) + "</span>"
+            : (u.id
+              ? UI.formatBytes(u.size) + " · uploaded · " + (u.stripped ? "metadata removed" : "no metadata found")
+              : UI.formatBytes(u.size) + " · uploading " + progress + "%");
+          return '<li class="upload-item' + (u.error ? " is-error" : "") + '" data-key="' + UI.esc(u.key) + '">' +
+            (u.thumb ? '<img class="upload-item__thumb" src="' + UI.esc(u.thumb) + '" alt="">'
+                     : '<span class="upload-item__thumb" aria-hidden="true"></span>') +
+            '<div><p class="upload-item__name">' + UI.esc(u.name) + '</p>' +
+            '<p class="upload-item__meta">' + meta + "</p>" + (u.error ? "" :
+              '<div class="upload-item__bar"><span class="upload-item__progress" style="width:' + progress +
+              '%"></span></div>') + "</div>" +
+            '<button type="button" class="upload-item__remove" data-remove="' + UI.esc(u.key) + '" ' +
+            'aria-label="Remove ' + UI.esc(u.name) + '">×</button></li>';
+        }).join("");
+        UI.qsa("[data-remove]", list).forEach(function (btn) {
+          btn.addEventListener("click", function () { removeUpload(btn.dataset.remove); });
+        });
+      }
+
+      function addFiles(files) {
+        var max = (REFERENCE.upload && REFERENCE.upload.max_bytes) || 5242880;
+        var allowed = ["image/jpeg", "image/png", "image/webp"];
+        Array.prototype.slice.call(files).forEach(function (file) {
+          if (STATE.uploads.filter(function (u) { return !u.error; }).length >= 6) {
+            UI.toast("You can attach up to 6 photos. Remove one to add another.", "error");
+            return;
+          }
+          var entry = {
+            key: newRequestId(), file: file, name: file.name || "photo",
+            size: file.size, progress: 0, id: null, error: null,
+          };
+          if (allowed.indexOf(file.type) === -1) {
+            entry.error = "Only JPEG, PNG or WebP photos are accepted.";
+          } else if (file.size > max) {
+            entry.error = "That photo is larger than " + UI.formatBytes(max) + ".";
+          }
+          STATE.uploads.push(entry);
+          renderUploads();
+          if (entry.error) return;
+          try {
+            entry.thumb = URL.createObjectURL(file);
+            renderUploads();
+          } catch (e) { /* preview not available */ }
+          API.uploadStaged(file, STATE.requestId, function (p) {
+            entry.progress = p;
+            renderUploads();
+          }).then(function (res) {
+            entry.id = res.id;
+            entry.url = res.url;
+            entry.progress = 1;
+            entry.stripped = res.metadata_stripped;
+            renderUploads();
+          }).catch(function (err) {
+            entry.error = err.message || "Upload failed.";
+            renderUploads();
+          });
+        });
+      }
+
+      function removeUpload(key) {
+        var entry = null;
+        STATE.uploads = STATE.uploads.filter(function (u) {
+          if (u.key === key) { entry = u; return false; }
+          return true;
+        });
+        renderUploads();
+        if (entry && entry.id) {
+          API.deleteStaged(entry.id).catch(function () { /* best effort */ });
+        }
+      }
+
+      function wireDropzone() {
+        var dz = el("dropzone");
+        var input = el("file-input");
+        dz.addEventListener("click", function () { input.click(); });
+        dz.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
+        });
+        input.addEventListener("change", function () {
+          addFiles(input.files);
+          input.value = "";
+        });
+        ["dragenter", "dragover"].forEach(function (evt) {
+          dz.addEventListener(evt, function (e) {
+            e.preventDefault();
+            dz.classList.add("is-dragover");
+          });
+        });
+        ["dragleave", "drop"].forEach(function (evt) {
+          dz.addEventListener(evt, function (e) {
+            e.preventDefault();
+            dz.classList.remove("is-dragover");
+          });
+        });
+        dz.addEventListener("drop", function (e) {
+          if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+        });
+      }
+
+      // ---- optional browser dictation (only shown when actually supported) --
+
+      function wireVoice() {
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) return;  // no fake microphone button when the browser cannot do it
+        var btn = el("voice-btn");
+        btn.hidden = false;
+        var recog = new SR();
+        recog.lang = navigator.language || "en-IN";
+        recog.continuous = true;
+        recog.interimResults = true;
+        var listening = false;
+        var base = "";
+        var ta = el("description");
+
+        recog.onresult = function (event) {
+          var finalText = "";
+          var interim = "";
+          for (var i = event.resultIndex; i < event.results.length; i++) {
+            var t = event.results[i][0].transcript;
+            if (event.results[i].isFinal) finalText += t + " ";
+            else interim += t;
+          }
+          if (finalText) {
+            base += finalText;
+            ta.value = (base + interim).slice(0, 8000);
+            updateCount();
+          } else {
+            ta.value = (base + interim).slice(0, 8000);
+            updateCount();
+          }
+        };
+        recog.onerror = function () {
+          listening = false;
+          btn.setAttribute("aria-pressed", "false");
+          btn.textContent = "🎤 Speak instead";
+          UI.toast("Dictation stopped. You can keep typing.", "error");
+        };
+        recog.onend = function () {
+          listening = false;
+          btn.setAttribute("aria-pressed", "false");
+          btn.textContent = "🎤 Speak instead";
+        };
+        btn.addEventListener("click", function () {
+          if (listening) { recog.stop(); return; }
+          base = ta.value ? ta.value.replace(/\s*$/, " ") : "";
+          try {
+            recog.start();
+            listening = true;
+            btn.setAttribute("aria-pressed", "true");
+            btn.textContent = "⏹ Stop dictation";
+            UI.toast("Listening using your browser's speech service…", "info", 3000);
+          } catch (e) {
+            UI.toast("Dictation could not start.", "error");
+          }
+        });
+      }
+
+      function updateCount() {
+        el("desc-count").textContent = String(el("description").value.length);
+      }
+
+      // ---- step 3: the summary ---------------------------------------------
+
+      function renderSummary(preview) {
+        var a = preview.analysis;
+        var html = "";
+
+        html += '<div class="summary-hero"><p class="summary-hero__label">In simple words</p>' +
+          '<p class="summary-hero__text">' + UI.esc(a.one_sentence || "—") + "</p></div>";
+
+        html += '<div class="insight-grid" style="margin-top:var(--space-5)">';
+        html += UI.insight("What the report says (plain English)", a.simple_explanation);
+        html += UI.insight("Who is affected", a.who_is_affected);
+        html += UI.insight("Why it matters", a.why_it_matters);
+        html += UI.insight("Estimated impact", a.impact_summary,
+          { tone: /not verified|estimate/i.test(a.impact_summary || "") ? "warn" : undefined,
+            note: "Estimates supplied by citizens are never shown as verified measurements." });
+        html += "</div>";
+
+        html += '<div class="insight-grid" style="margin-top:var(--space-4)">';
+        html += UI.insight("Possible causes (unconfirmed)", a.possible_causes && a.possible_causes.length
+          ? "<ul>" + a.possible_causes.map(function (c) { return "<li>" + UI.esc(c) + "</li>"; }).join("") + "</ul>"
+          : "No specific cause could be proposed.", { html: true, tone: "muted",
+            note: "These are hypotheses for a student team to investigate, not established facts." });
+        html += UI.insight("A student team could try", a.potential_solution);
+        html += UI.insight("Skills this would need", a.skills_required && a.skills_required.length
+          ? a.skills_required.map(UI.esc).join(", ") : "Not identified yet — a mentor will scope this.");
+        html += "</div>";
+
+        var flags = "";
+        flags += '<span class="badge ' + (a.government_dependency ? "badge--danger" : "badge--success") + '">' +
+          (a.government_dependency
+            ? "May need government action — a reviewer will check this"
+            : "No government dependency detected") + "</span>";
+        flags += '<span class="badge badge--info">Analysis: ' +
+          (a.source === "groq" ? UI.esc(a.model || "Groq model") : "local rules (no AI)") + "</span>";
+        flags += '<span class="badge badge--neutral">' +
+          UI.esc(a.review_status === "corrected_by_human" ? "Corrected by a human"
+            : "AI complete — awaiting human review") + "</span>";
+        if (a.confidence != null) {
+          flags += '<span class="badge badge--neutral">Model confidence ' +
+            Math.round(a.confidence * 100) + "% (self-reported, not a probability)</span>";
+        }
+
+        html += '<section class="panel card" style="margin-top:var(--space-5)">' +
+          '<div class="panel__head"><h3 class="panel__title">Status of this analysis</h3>' +
+          '<p class="panel__sub">AI and rules assist; only a human reviewer decides.</p></div>' +
+          '<div class="panel__body stack"><div class="chip-row">' + flags + "</div>" +
+          (a.warnings || []).map(function (w) {
+            return '<p class="muted" style="font-size:var(--fs-caption)">' + UI.esc(w) + "</p>";
+          }).join("") + "</div></section>";
+
+        if (a.missing_information && a.missing_information.length) {
+          html += '<section class="panel card" style="margin-top:var(--space-4)">' +
+            '<div class="panel__head"><h3 class="panel__title">Questions a reviewer would ask</h3>' +
+            "<p class=\"panel__sub\">At most two, and only if they are genuinely needed.</p></div>" +
+            '<div class="panel__body"><ul>' + a.missing_information.map(function (q) {
+              return "<li>" + UI.esc(q) + "</li>";
+            }).join("") + "</ul>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">You can answer these later — they do not ' +
+            "block submission.</p></div></section>";
+        }
+
+        var dupes = (preview.duplicates && preview.duplicates.candidates) || [];
+        html += '<section class="panel card" style="margin-top:var(--space-4)">' +
+          '<div class="panel__head"><h3 class="panel__title">Similar reports in ' +
+          UI.esc(el("city").value || "this city") + "</h3>" +
+          '<p class="panel__sub">' + UI.esc(preview.duplicates.method) + "</p></div>" +
+          '<div class="panel__body stack">' + duplicateMarkup(preview.duplicates) + "</div></section>";
+
+        html += '<section class="panel card" style="margin-top:var(--space-4)">' +
+          '<div class="panel__head"><h3 class="panel__title">Your original words</h3>' +
+          '<p class="panel__sub">Kept exactly as you wrote them. Nothing above replaces this.</p></div>' +
+          '<div class="panel__body"><div class="original-note prose">' +
+          UI.esc(el("description").value).replace(/\n/g, "<br>") + "</div></div></section>";
+
+        html += '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-4)">' +
+          UI.esc(preview.note) + "</p>";
+
+        el("summary").innerHTML = html;
+      }
+
+      // ---- actions ----------------------------------------------------------
+
+      function analyze() {
+        UI.clearFieldErrors(el("report-form"));
+        var data = collect();
+        var ok = true;
+        if (!data.description || data.description.length < 20) {
+          UI.showFieldError(el("report-form"), "description",
+            "Please describe the problem in at least 20 characters.");
+          ok = false;
+        }
+        if (!STATE.domain) {
+          UI.qsa('[data-error-for="domain"]').forEach(function (e) {
+            e.textContent = "Choose the area this belongs to.";
+          });
+          ok = false;
+        }
+        if (!data.city) {
+          UI.showFieldError(el("report-form"), "city", "Please enter your city.");
+          ok = false;
+        }
+        if (!ok) {
+          setStep(data.description && STATE.domain ? 2 : 1);
+          return;
+        }
+
+        var uploading = STATE.uploads.filter(function (u) { return !u.id && !u.error; });
+        if (uploading.length) {
+          UI.toast("Please wait for the photos to finish uploading.", "info");
+          return;
+        }
+
+        var btn = el("analyze-btn");
+        UI.setBusy(btn, true, "Analyzing…");
+        API.previewChallenge(data).then(function (res) {
+          UI.setBusy(btn, false);
+          STATE.preview = res;
+          STATE.analyzedFor = fingerprint();
+          renderSummary(res);
+          setStep(3);
+        }).catch(function (err) {
+          UI.setBusy(btn, false);
+          UI.toast(err.message, "error", 6000);
+        });
+      }
+
+      function submitReport(e) {
+        e.preventDefault();
+        if (STATE.submitting) return;
+        if (STATE.analyzedFor && STATE.analyzedFor !== fingerprint()) {
+          UI.toast("Your report changed after analysis. Please press \"Analyze my problem\" again.", "error", 6000);
+          setStep(2);
+          return;
+        }
+        STATE.submitting = true;
+        var btn = el("submit-btn");
+        UI.setBusy(btn, true, "Submitting…");
+        API.post("/api/challenges", collect()).then(function (c) {
+          clearSessionRequestId();
+          UI.toast("Submitted. A reviewer will look at it shortly.", "success", 6000);
+          window.location.href = "/challenge.html?id=" + c.id;
+        }).catch(function (err) {
+          STATE.submitting = false;
+          UI.setBusy(btn, false);
+          UI.toast(err.message, "error", 7000);
+        });
+      }
+
+      function loadCities() {
+        API.get("/api/challenges", { page_size: 100 }).then(function (res) {
+          knownCities = res.available_cities || [];
+          renderCities();
+        }).catch(function () { renderCities(); });
+      }
+
+      // ---- boot -------------------------------------------------------------
+
+      App.ready.then(function (user) {
+        var gate = el("gate");
+        if (!user) {
+          gate.innerHTML = UI.emptyState("🔐", "Sign in to report a problem",
+            "Citizen accounts can submit societal problems.",
+            '<a class="btn btn--primary" href="/login.html?next=%2Fsubmit.html">Sign in</a> ' +
+            '<a class="btn btn--secondary" href="/register.html">Create an account</a>');
+          return;
+        }
+        if (user.role !== "citizen") {
+          gate.innerHTML = UI.emptyState("ℹ️", "Submissions come from citizen accounts",
+            "You are signed in as " + App.roleLabel(user.role) + ". Citizen accounts are free to create " +
+            "and are separate from student or staff accounts.");
+          return;
+        }
+
+        STATE.requestId = sessionRequestId();
+        el("wizard").hidden = false;
+        setStep(1);
+
+        API.reportingReference().then(function (ref) {
+          REFERENCE.domains = ref.domains && ref.domains.length ? ref.domains : FALLBACK_DOMAINS;
+          REFERENCE.impact_kinds = ref.impact_kinds || [];
+          REFERENCE.upload = ref.upload;
+          if (ref.upload) {
+            el("upload-hint").textContent = "JPEG, PNG or WebP · up to " +
+              UI.formatBytes(ref.upload.max_bytes) + " each · up to " + ref.upload.max_per_challenge +
+              " photos";
+          }
+          renderDomains();
+          renderImpactKinds();
+          renderImpactFields();
+        }).catch(function () {
+          renderDomains();
+          renderImpactKinds();
+          renderImpactFields();
+          UI.toast("Could not load the domain list; using the built-in list.", "error");
+        });
+
+        loadCities();
+        wireDropzone();
+        wireVoice();
+        updateCount();
+
+        el("description").addEventListener("input", updateCount);
+        el("description").addEventListener("input", scheduleDuplicateCheck);
+        el("city").addEventListener("input", scheduleDuplicateCheck);
+        el("locality").addEventListener("input", scheduleDuplicateCheck);
+
+        el("next-1").addEventListener("click", function () {
+          var data = collect();
+          var ok = true;
+          if (!data.description || data.description.length < 20) {
+            UI.showFieldError(el("report-form"), "description",
+              "Please describe the problem in at least 20 characters.");
+            ok = false;
+          }
+          if (!STATE.domain) {
+            UI.qsa('[data-error-for="domain"]').forEach(function (e) {
+              e.textContent = "Choose the area this belongs to.";
+            });
+            ok = false;
+          }
+          if (ok) setStep(2);
+        });
+        el("back-2").addEventListener("click", function () { setStep(1); });
+        el("back-3").addEventListener("click", function () { setStep(2); });
+        el("analyze-btn").addEventListener("click", analyze);
+        el("report-form").addEventListener("submit", submitReport);
+      });
+    })();
+  </script>
+</body>
+</html>

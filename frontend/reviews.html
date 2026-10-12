@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review queue — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container" style="padding-block:var(--space-7)">
+    <div class="page-head">
+      <span class="eyebrow">Human review</span>
+      <h1>Review queue</h1>
+      <p class="lead">AI screening has produced recommendations. Your decision — with a written
+        reason — is the authoritative one.</p>
+    </div>
+    <div id="gate"></div>
+    <div id="queue" aria-live="polite"></div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      var REVIEWER = ["admin", "faculty", "university_admin"];
+      var user = null;
+
+      async function load() {
+        var host = UI.qs("#queue");
+        host.innerHTML = UI.loading("Loading the queue…");
+        try {
+          var res = await API.get("/api/challenges/queue", { page: 1, page_size: 25 });
+          if (!res.items.length) {
+            host.innerHTML = UI.emptyState("✅", "Queue is clear", "There are no problems waiting for a decision.");
+            return;
+          }
+          host.innerHTML = '<div class="stack">' + res.items.map(row).join("") + "</div>";
+          UI.qsa(".decide-btn").forEach(function (b) {
+            b.addEventListener("click", function () { openDecision(parseInt(b.dataset.id, 10), b.dataset.title); });
+          });
+        } catch (e) { host.innerHTML = UI.errorState(e.message); }
+      }
+
+      function row(c) {
+        var s = c.latest_screening;
+        var flags = "";
+        if (s) {
+          flags += '<span class="badge ' + (s.government_dependency ? "badge--danger" : "badge--success") + '">' +
+            (s.government_dependency ? "Government-dependent" : "No government dependency") + "</span>" +
+            '<span class="badge badge--info">Suitability: ' + UI.esc(UI.titleCase(s.student_project_suitability)) + "</span>" +
+            '<span class="badge badge--neutral">AI suggests: ' + UI.esc(UI.titleCase(s.recommendation)) + "</span>" +
+            '<span class="badge badge--neutral">Source: ' + UI.esc(s.source) + "</span>";
+        } else {
+          flags = '<span class="badge badge--warning">Not screened yet</span>';
+        }
+        return '<article class="panel card"><div class="panel__head">' +
+          '<div class="chip-row" style="margin-bottom:var(--space-2)">' + UI.badge(c.status) +
+          '<span class="chip" style="pointer-events:none">' + UI.esc(UI.titleCase(c.category)) + "</span></div>" +
+          '<h2 class="panel__title">' + UI.esc(c.title) + "</h2>" +
+          '<p class="panel__sub">' + UI.esc(c.citizen_name || "Citizen") + " · " +
+          (c.location ? UI.esc(c.location) + " · " : "") + UI.fmtDate(c.created_at) + "</p></div>" +
+          '<div class="panel__body"><p>' + UI.esc((c.description || "").slice(0, 320)) + "…</p>" +
+          '<div class="chip-row" style="margin-top:var(--space-3)">' + flags + "</div>" +
+          (s && s.problem_summary ? '<p class="muted" style="font-size:var(--fs-caption);margin-top:var(--space-3)">AI summary: ' + UI.esc(s.problem_summary) + "</p>" : "") +
+          '<div class="btn-group" style="margin-top:var(--space-4)">' +
+          '<button class="btn btn--primary btn--sm decide-btn" data-id="' + c.id + '" data-title="' + UI.esc(c.title) + '">Record a decision</button>' +
+          '<a class="btn btn--ghost btn--sm" href="/challenge.html?id=' + c.id + '">Full details</a></div></div></article>';
+      }
+
+      function openDecision(cid, title) {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button>' +
+          '<h3 class="modal__title">Record a decision</h3><p class="muted">' + UI.esc(title) + "</p>" +
+          '<div class="field"><label class="field__label">Decision</label><select class="select" id="d-dec">' +
+          '<option value="approved">Approve for student innovation</option>' +
+          '<option value="needs_clarification">Needs clarification</option>' +
+          '<option value="excluded_government">Exclude — government-dependent</option>' +
+          '<option value="declined">Decline — not suitable</option></select></div>' +
+          '<div class="field"><label class="field__label">Reason (required)</label>' +
+          '<textarea class="input" id="d-reason" rows="3" placeholder="Why? This is stored permanently."></textarea>' +
+          '<span class="field__hint">At least 10 characters. Your decision overrides any AI recommendation.</span></div>' +
+          '<button class="btn btn--primary btn--block" id="d-submit">Save decision</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#d-submit").addEventListener("click", async function () {
+          var reason = modal.querySelector("#d-reason").value.trim();
+          if (reason.length < 10) { UI.toast("Please write at least 10 characters.", "error"); return; }
+          UI.setBusy(this, true, "Saving…");
+          try {
+            await API.post("/api/challenges/" + cid + "/review", {
+              decision: modal.querySelector("#d-dec").value, reason: reason });
+            UI.toast("Decision recorded.", "success"); close(); load();
+          } catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      App.ready.then(function (u) {
+        user = u;
+        var gate = UI.qs("#gate");
+        if (!u) { window.location.href = "/login.html?next=%2Freviews.html"; return; }
+        if (REVIEWER.indexOf(u.role) === -1) {
+          gate.innerHTML = UI.emptyState("🔒", "Reviewers only",
+            "Your role (" + App.roleLabel(u.role) + ") cannot review problems. This is enforced on the server.");
+          UI.qs("#queue").innerHTML = "";
+          return;
+        }
+        load();
+      });
+    })();
+  </script>
+</body>
+</html>

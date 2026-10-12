@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Impact record — SamadhanSetu</title>
+  <meta name="description" content="Verified impact reports, each stating its own limitations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container" style="padding-block:var(--space-7)">
+    <div class="page-head">
+      <span class="eyebrow">Impact record</span>
+      <h1>What actually changed — and what is still unproven</h1>
+      <p class="lead">Every entry states its own verification status and limitations. Only reports a
+        university marked <strong>verified</strong> appear here.</p>
+    </div>
+    <div id="impact-list" aria-live="polite"></div>
+    <div id="impact-note" class="muted" style="margin-top:var(--space-5);font-size:var(--fs-caption)"></div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      function card(r) {
+        return '<article class="panel card" style="margin-bottom:var(--space-5)"><div class="panel__head">' +
+          '<div class="chip-row">' + UI.badge(r.verification_status) + UI.demoTag(r.is_demo) + '</div>' +
+          '<h2 class="panel__title" style="margin-top:var(--space-3)">' + UI.esc(r.project_title || "Project") + '</h2>' +
+          '<p class="panel__sub">' + UI.esc(r.university || "") + " · recorded " + UI.fmtDate(r.created_at) + '</p></div>' +
+          '<div class="panel__body stack">' +
+          field("Original problem", r.original_problem) +
+          field("Approach", r.approach) +
+          field("Prior solutions considered", r.prior_solutions_considered) +
+          field("Reused or modified", r.reused_or_modified) +
+          field("Prototype", r.prototype) +
+          field("Testing evidence", r.testing_evidence) +
+          field("Actual results", r.actual_results) +
+          field("Community feedback", r.community_feedback) +
+          '<div class="badge badge--warning" style="align-self:flex-start">Limitations: ' +
+            UI.esc(r.limitations || "not stated") + '</div>' +
+          (r.cost_info ? field("Cost", r.cost_info) : "") +
+          (r.follow_up ? field("Follow-up", r.follow_up) : "") +
+          '</div></article>';
+      }
+      function field(label, value) {
+        if (!value) return "";
+        return "<div><strong>" + UI.esc(label) + "</strong><p>" + UI.esc(value) + "</p></div>";
+      }
+
+      App.ready.then(async function () {
+        var host = UI.qs("#impact-list");
+        host.innerHTML = UI.loading("Loading verified impact…");
+        try {
+          var res = await API.get("/api/impact", { page: 1, page_size: 20 });
+          UI.qs("#impact-note").textContent = res.note || "";
+          host.innerHTML = (res.items || []).length
+            ? res.items.map(card).join("")
+            : UI.emptyState("📈", "No verified impact reports yet",
+                "Once a university verifies a project's impact report it will appear here.");
+        } catch (e) {
+          host.innerHTML = UI.errorState(e.message);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

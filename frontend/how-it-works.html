@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How it works — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main">
+    <section class="band">
+      <div class="container container--prose">
+        <span class="eyebrow">The full process</span>
+        <h1>From a citizen's description to a verified solution</h1>
+        <p class="lead">Each stage below states exactly what the platform does, what the AI does,
+          and who decides.</p>
+      </div>
+    </section>
+
+    <section class="band band--soft">
+      <div class="container container--prose">
+        <ol class="steps">
+          <li class="steps__item"><span class="steps__marker">1</span><div>
+            <h3>A citizen reports a problem</h3>
+            <p>The problem is stored exactly as written. The citizen's own wording is preserved and
+              never rewritten by AI.</p>
+          </div></li>
+          <li class="steps__item"><span class="steps__marker">2</span><div>
+            <h3>AI screening produces a recommendation</h3>
+            <p>Groq (llama-3.3-70b-versatile) — or a local rules engine when Groq is not configured —
+              summarises the problem, suggests a category and skills, lists missing information and
+              clarification questions, and flags whether the outcome depends on government action.
+              Its output is labelled a <strong>recommendation only</strong>.</p>
+          </div></li>
+          <li class="steps__item"><span class="steps__marker">3</span><div>
+            <h3>A human reviewer decides</h3>
+            <p>A faculty, university-admin or platform-admin reviewer records one of: approve for
+              student innovation, request clarification, exclude as government-dependent, or decline.
+              Every decision requires a written reason and is written to a permanent audit trail.</p>
+          </div></li>
+          <li class="steps__item"><span class="steps__marker">4</span><div>
+            <h3>A university forms a team</h3>
+            <p>Approved problems can be accepted by a university. Student matching is a transparent,
+              deterministic weighted score (skills 40%, experience 20%, interest 15%, availability 15%,
+              diversity 10%) with a written reason for every student suggested. A mentor approves the team.</p>
+          </div></li>
+          <li class="steps__item"><span class="steps__marker">5</span><div>
+            <h3>The team builds and reports</h3>
+            <p>Tasks, milestones, evidence and weekly reports are tracked. Every member accepts a
+              Responsibility Form before work is assigned. Mentors review milestones with written comments.</p>
+          </div></li>
+          <li class="steps__item"><span class="steps__marker">6</span><div>
+            <h3>Impact is recorded honestly</h3>
+            <p>Impact reports separate what was proven from what is still pending, and record
+              limitations. Only university staff can mark a report <em>verified</em>, and only reports
+              that state their own limitations reach the public impact page.</p>
+          </div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="band band--dark">
+      <div class="container prose">
+        <span class="eyebrow">Honesty</span>
+        <h2>What this build does <em>not</em> do</h2>
+        <ul class="feature-list">
+          <li><span class="tick" aria-hidden="true">—</span><span><strong>No web-wide search.</strong> Prior-solution matching reads only this deployment's internal repository. It does not search GitHub, papers or the open web, and the interface says so where results are shown.</span></li>
+          <li><span class="tick" aria-hidden="true">—</span><span><strong>No unsupervised AI decisions.</strong> AI never approves a problem, assigns a student, scores a submission, or verifies impact.</span></li>
+          <li><span class="tick" aria-hidden="true">—</span><span><strong>Model confidence is self-reported.</strong> Any confidence number comes from the model itself and is not a calibrated probability; it is labelled as such.</span></li>
+          <li><span class="tick" aria-hidden="true">—</span><span><strong>Progress and innovation are separate.</strong> Competition rankings never merge execution progress with human judge scores into one misleading number.</span></li>
+          <li><span class="tick" aria-hidden="true">—</span><span><strong>Demo data is labelled.</strong> Seeded demonstration records carry a visible <span class="tag-demo">Demo data</span> tag.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="container container--prose">
+        <h2>Privacy &amp; access</h2>
+        <ul class="feature-list">
+          <li><span class="tick" aria-hidden="true">✓</span><span>Companies see students only when the student opted in to portfolio sharing. Direct contact details are never disclosed.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span>Students see only projects they are active members of; the backend enforces this, not just the interface.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span>Sessions use httpOnly cookies with a CSRF-protecting request header. Passwords are stored only as salted PBKDF2-HMAC-SHA256 hashes.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span>Platform administrator accounts are provisioned by operators and cannot be created through public registration.</span></li>
+        </ul>
+        <div class="btn-group" style="margin-top:var(--space-6)">
+          <a class="btn btn--primary btn--pill" href="/submit.html">Report a problem</a>
+          <a class="btn btn--secondary btn--pill" href="/challenges.html">Explore approved problems</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer"></footer>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+</body>
+</html>

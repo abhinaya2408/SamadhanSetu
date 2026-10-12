@@ -1,0 +1,15 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+pydantic>=2.7
+email-validator>=2.1
+python-dotenv>=1.0
+groq>=0.13
+httpx>=0.27
+python-multipart>=0.0.9
+
+# Optional but recommended: enables strict image decode + re-encode for citizen
+# evidence uploads, which validates the file is really a decodable image and
+# removes all metadata. Without Pillow the app still works — uploads are checked
+# by magic bytes and a built-in JPEG/PNG/WebP metadata stripper is used instead.
+pillow>=10.0

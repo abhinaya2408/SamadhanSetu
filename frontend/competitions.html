@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Competitions — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container container--wide" style="padding-block:var(--space-7)">
+    <div class="page-head">
+      <span class="eyebrow">Competitions</span>
+      <h1>Student innovation competitions</h1>
+      <p class="lead">Two rankings are always shown separately: human judge scores (innovation) and
+        milestone/task completion (progress). They are never merged.</p>
+    </div>
+    <div id="list" class="grid grid--3" aria-live="polite"></div>
+    <div id="detail" style="margin-top:var(--space-7)"></div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      var user = null;
+      var STAFF = ["admin", "faculty", "university_admin"];
+      function isStaff() { return user && STAFF.indexOf(user.role) !== -1; }
+
+      async function loadList() {
+        var host = UI.qs("#list");
+        host.innerHTML = UI.loading("Loading competitions…");
+        try {
+          var res = await API.get("/api/competitions", { page: 1, page_size: 12 });
+          if (!res.items.length) {
+            host.innerHTML = UI.emptyState("🏆", "No competitions yet", "Staff can create a competition for student teams.");
+            return;
+          }
+          host.innerHTML = res.items.map(function (c) {
+            return '<article class="card card--hover"><div class="card__header">' + UI.badge(c.status) + UI.demoTag(c.is_demo) + "</div>" +
+              '<h3 class="card__title">' + UI.esc(c.title) + "</h3>" +
+              '<p class="card__body">' + UI.esc((c.description || "").slice(0, 130)) + "…</p>" +
+              '<div class="muted" style="font-size:var(--fs-fine)">' + UI.esc(UI.titleCase(c.scope.replace("_", " "))) +
+              (c.submission_deadline ? " · submissions close " + UI.fmtDate(c.submission_deadline) : "") + "</div>" +
+              '<div class="card__footer"><span class="badge badge--neutral">' + c.registered_projects + " registered</span>" +
+              '<span class="badge badge--neutral">' + c.submission_count + " submissions</span></div>" +
+              '<div class="btn-group" style="margin-top:var(--space-4)"><button class="btn btn--primary btn--sm open-comp" data-id="' + c.id + '">Open</button></div></article>';
+          }).join("");
+          UI.qsa(".open-comp").forEach(function (b) {
+            b.addEventListener("click", function () { loadDetail(parseInt(b.dataset.id, 10)); });
+          });
+        } catch (e) { host.innerHTML = UI.errorState(e.message); }
+      }
+
+      async function loadDetail(cid) {
+        var host = UI.qs("#detail");
+        host.innerHTML = UI.loading("Loading competition…");
+        var comp, leaderboardI, leaderboardP, subs, myProjects;
+        try { comp = await API.get("/api/competitions/" + cid); } catch (e) { host.innerHTML = UI.errorState(e.message); return; }
+        leaderboardI = await API.get("/api/competitions/" + cid + "/leaderboard", { kind: "innovation" }).catch(function () { return []; });
+        leaderboardP = await API.get("/api/competitions/" + cid + "/leaderboard", { kind: "progress" }).catch(function () { return []; });
+        subs = await API.get("/api/competitions/" + cid + "/submissions").catch(function () { return []; });
+        myProjects = (user && (user.role === "student" || isStaff()))
+          ? await API.get("/api/projects", { page: 1, page_size: 50 }).catch(function () { return { items: [] }; })
+          : { items: [] };
+
+        var criteria = [];
+        try { criteria = JSON.parse(comp.criteria || "[]"); } catch (e) { criteria = []; }
+
+        var html = '<div class="page-head" style="margin-bottom:var(--space-5)"><div class="chip-row">' +
+          UI.badge(comp.status) + UI.demoTag(comp.is_demo) + "</div><h1>" + UI.esc(comp.title) + "</h1>" +
+          '<p class="lead">' + UI.esc(comp.description || "") + "</p>" +
+          '<div class="chip-row"><span class="badge badge--neutral">' + UI.esc(UI.titleCase(comp.scope.replace("_", " "))) + "</span>" +
+          (comp.registration_deadline ? '<span class="badge badge--neutral">Register by ' + UI.fmtDate(comp.registration_deadline) + "</span>" : "") +
+          (comp.submission_deadline ? '<span class="badge badge--neutral">Submit by ' + UI.fmtDate(comp.submission_deadline) + "</span>" : "") +
+          (comp.results_published ? '<span class="badge badge--success">Results published</span>' : '<span class="badge badge--warning">Results not published</span>') +
+          "</div></div>";
+
+        html += '<section class="panel card" style="margin-bottom:var(--space-5)"><div class="panel__head">' +
+          '<h2 class="panel__title">Evaluation criteria</h2></div><div class="panel__body"><div class="chip-row">' +
+          criteria.map(function (c) { return '<span class="badge badge--neutral">' + UI.esc(c.label) + " · " + c.weight + "%</span>"; }).join("") +
+          "</div></div></section>";
+
+        // Actions
+        html += '<section class="panel card" style="margin-bottom:var(--space-5)"><div class="panel__head">' +
+          '<h2 class="panel__title">Actions</h2><p class="panel__sub">Your role: ' + UI.esc(App.roleLabel(user ? user.role : "visitor")) + "</p></div>" +
+          '<div class="panel__body"><div class="btn-group">' +
+          ((user && (user.role === "student" || isStaff()))
+            ? '<button class="btn btn--primary btn--sm" id="register-btn">Register a project</button>' +
+              '<button class="btn btn--secondary btn--sm" id="submit-btn">Submit entry</button>'
+            : "") +
+          (isStaff() ? '<button class="btn btn--soft btn--sm" id="publish-btn">Publish results</button>' : "") +
+          '<button class="btn btn--ghost btn--sm" id="judge-btn">Judge a submission</button>' +
+          "</div></div></section>";
+
+        // Leaderboards
+        html += '<div class="split">';
+        html += leaderboardPanel("Innovation (human judge scores)", leaderboardI, "innovation_score");
+        html += leaderboardPanel("Progress (milestones &amp; tasks)", leaderboardP, "progress_score");
+        html += "</div>";
+
+        // Submissions
+        html += '<section class="panel card" style="margin-top:var(--space-5)"><div class="panel__head">' +
+          '<h2 class="panel__title">Submissions</h2><p class="panel__sub">Scores are visible to staff, and to everyone once results are published.</p></div>' +
+          "<div class='panel__body panel__body--flush'>" +
+          (subs.length ? '<div class="table-wrap"><table class="table"><thead><tr><th>Team</th><th>Project</th><th>University</th><th>Progress</th><th>Score</th></tr></thead><tbody>' +
+            subs.map(function (s) {
+              return "<tr><td>" + UI.esc(s.team_name || "Team") + "</td><td>" + UI.esc(s.project_title || "") +
+                "</td><td>" + UI.esc(s.university_name || "—") + "</td><td class='num'>" + (s.progress_score != null ? s.progress_score + "%" : "—") +
+                "</td><td class='num'>" + (s.total_score != null ? s.total_score : "not published") + "</td></tr>";
+            }).join("") + "</tbody></table></div>"
+            : "<p class='muted' style='padding:var(--space-5)'>No submissions yet.</p>") +
+          "</div></section>";
+
+        host.innerHTML = html;
+
+        var rb = UI.qs("#register-btn");
+        if (rb) rb.addEventListener("click", function () { openProjectPicker("register", cid, myProjects.items); });
+        var sb = UI.qs("#submit-btn");
+        if (sb) sb.addEventListener("click", function () { openProjectPicker("submit", cid, myProjects.items); });
+        var pb = UI.qs("#publish-btn");
+        if (pb) pb.addEventListener("click", async function () {
+          UI.setBusy(pb, true, "Publishing…");
+          try { await API.post("/api/competitions/" + cid + "/publish", {}); UI.toast("Results published.", "success"); loadDetail(cid); }
+          catch (e) { UI.setBusy(pb, false); UI.toast(e.message, "error"); }
+        });
+        var jb = UI.qs("#judge-btn");
+        if (jb) jb.addEventListener("click", function () { openJudge(cid, subs, criteria); });
+        host.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function leaderboardPanel(title, rows, key) {
+        if (!rows || !rows.length) {
+          return '<section class="panel card"><div class="panel__head"><h2 class="panel__title">' + title +
+            '</h2></div><div class="panel__body"><p class="muted">No scored entries yet.</p></div></section>';
+        }
+        return '<section class="panel card"><div class="panel__head"><h2 class="panel__title">' + title + "</h2></div>" +
+          '<div class="panel__body panel__body--flush"><ul class="leaderboard">' + rows.map(function (r) {
+            return '<li class="leaderboard__row"><span class="leaderboard__rank">' + r.rank + "</span>" +
+              '<div><div class="leaderboard__team">' + UI.esc(r.team_name) + '</div><div class="leaderboard__sub">' +
+              UI.esc(r.project_title) + (r.university ? " · " + UI.esc(r.university) : "") + "</div></div>" +
+              '<span class="leaderboard__score">' + (r[key] != null ? r[key] : "—") + "</span></li>";
+          }).join("") + "</ul></div></section>";
+      }
+
+      function openProjectPicker(mode, cid, projects) {
+        if (!projects.length) { UI.toast("No projects available to you.", "error"); return; }
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button><h3 class="modal__title">' +
+          (mode === "register" ? "Register a project" : "Submit an entry") + "</h3>" +
+          '<div class="field"><label class="field__label">Project</label><select class="select" id="pk-project">' +
+          projects.map(function (p) { return '<option value="' + p.id + '">' + UI.esc(p.title) + "</option>"; }).join("") + "</select></div>" +
+          (mode === "submit"
+            ? '<div class="field"><label class="field__label">Title</label><input class="input" id="pk-title"></div>' +
+              '<div class="field"><label class="field__label">Summary</label><textarea class="input" id="pk-summary" rows="2"></textarea></div>' +
+              '<div class="field"><label class="field__label">Repository link</label><input class="input" id="pk-repo" placeholder="https://"></div>'
+            : "") +
+          '<button class="btn btn--primary btn--block" id="pk-submit">' +
+          (mode === "register" ? "Register" : "Submit") + "</button></div>";
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#pk-submit").addEventListener("click", async function () {
+          var pid = parseInt(modal.querySelector("#pk-project").value, 10);
+          UI.setBusy(this, true, "Saving…");
+          try {
+            if (mode === "register") {
+              await API.post("/api/competitions/" + cid + "/register", {}, { project_id: pid });
+              UI.toast("Project registered.", "success");
+            } else {
+              await API.post("/api/competitions/" + cid + "/submissions", {
+                project_id: pid,
+                title: modal.querySelector("#pk-title").value.trim() || "Entry",
+                summary: modal.querySelector("#pk-summary").value.trim() || null,
+                repository_link: modal.querySelector("#pk-repo").value.trim() || null,
+              });
+              UI.toast("Entry submitted.", "success");
+            }
+            close(); loadDetail(cid);
+          } catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      function openJudge(cid, subs, criteria) {
+        if (!subs.length) { UI.toast("There are no submissions to score yet.", "error"); return; }
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel modal__panel--wide" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button><h3 class="modal__title">Score a submission</h3>' +
+          '<p class="muted" style="font-size:var(--fs-caption)">Scores are your own as an authorised judge; ranks use the published criteria weights.</p>' +
+          '<div class="field"><label class="field__label">Submission</label><select class="select" id="j-sub">' +
+          subs.map(function (s) { return '<option value="' + s.id + '">' + UI.esc(s.title) + "</option>"; }).join("") + "</select></div>" +
+          (criteria.length ? criteria : [{ key: "technical", label: "Technical" }]).map(function (c) {
+            return '<div class="field"><label class="field__label">' + UI.esc(c.label) + ' (0–10)</label>' +
+              '<input class="input j-score" data-key="' + c.key + '" type="number" min="0" max="10" step="0.5"></div>';
+          }).join("") +
+          '<div class="field"><label class="field__label">Feedback</label><textarea class="input" id="j-feedback" rows="2"></textarea></div>' +
+          '<button class="btn btn--primary btn--block" id="j-submit">Save scores</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#j-submit").addEventListener("click", async function () {
+          var sid = modal.querySelector("#j-sub").value;
+          var entries = UI.qsa(".j-score", modal).filter(function (i) { return i.value !== ""; });
+          if (!entries.length) { UI.toast("Enter at least one score.", "error"); return; }
+          UI.setBusy(this, true, "Saving…");
+          try {
+            for (var i = 0; i < entries.length; i++) {
+              await API.post("/api/competitions/" + cid + "/submissions/" + sid + "/scores", {
+                criterion: entries[i].dataset.key,
+                score: parseFloat(entries[i].value),
+                feedback: modal.querySelector("#j-feedback").value.trim() || null,
+              });
+            }
+            UI.toast("Scores saved.", "success"); close(); loadDetail(cid);
+          } catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      App.ready.then(function (u) {
+        user = u;
+        loadList();
+        var cid = UI.param("id");
+        if (cid) loadDetail(parseInt(cid, 10));
+      });
+    })();
+  </script>
+</body>
+</html>

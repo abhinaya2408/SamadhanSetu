@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container container--wide" style="padding-block:var(--space-7)">
+    <div id="head"></div>
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tabs__btn is-active" data-tab="overview" role="tab">Overview</button>
+      <button class="tabs__btn" data-tab="team" role="tab">Team</button>
+      <button class="tabs__btn" data-tab="tasks" role="tab">Tasks</button>
+      <button class="tabs__btn" data-tab="milestones" role="tab">Milestones</button>
+      <button class="tabs__btn" data-tab="reports" role="tab">Reports</button>
+      <button class="tabs__btn" data-tab="reviews" role="tab">Mentor reviews</button>
+      <button class="tabs__btn" data-tab="impact" role="tab">Impact</button>
+    </div>
+    <div id="panel" aria-live="polite" style="margin-top:var(--space-5)"></div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      var id = parseInt(UI.param("id"), 10);
+      var user = null, project = null, overview = null, members = [];
+      var STAFF = ["admin", "faculty", "university_admin"];
+
+      function isStaff() {
+        if (!user) return false;
+        if (STAFF.indexOf(user.role) !== -1) return true;
+        return project && (project.mentor_id === user.id);
+      }
+      function myMembership() {
+        return members.filter(function (m) { return m.user_id === (user && user.id) && m.status === "active"; })[0];
+      }
+
+      async function boot() {
+        if (!id) { UI.qs("#panel").innerHTML = UI.errorState("No project specified."); return; }
+        try {
+          overview = await API.get("/api/projects/" + id + "/overview");
+          project = overview.project;
+        } catch (e) {
+          UI.qs("#head").innerHTML = "";
+          UI.qs("#tabs").hidden = true;
+          UI.qs("#panel").innerHTML = UI.emptyState("🔒", "Project not available", e.message);
+          return;
+        }
+        members = overview.members || [];
+        renderHead();
+        showTab("overview");
+      }
+
+      function renderHead() {
+        UI.qs("#head").innerHTML =
+          '<div class="page-head"><div class="chip-row" style="margin-bottom:var(--space-3)">' +
+          UI.badge(project.status) + '<span class="chip" style="pointer-events:none">Progress ' + overview.progress_pct + "%</span>" +
+          '<span class="chip" style="pointer-events:none">' + UI.esc(project.university_name || "University not set") + "</span></div>" +
+          "<h1>" + UI.esc(project.title) + "</h1>" +
+          '<p class="lead">' + UI.esc(project.problem_statement) + "</p>" +
+          '<div class="chip-row">' +
+          '<span class="badge badge--neutral">Mentor: ' + UI.esc(project.mentor_name || "unassigned") + "</span>" +
+          '<span class="badge badge--neutral">Team ' + overview.members.length + " / " + project.expected_team_size + "</span>" +
+          (project.deadline ? '<span class="badge badge--neutral">Due ' + UI.fmtDate(project.deadline) + "</span>" : "") +
+          (project.challenge_id ? '<a class="badge badge--primary" href="/challenge.html?id=' + project.challenge_id + '">View original problem</a>' : "") +
+          "</div></div>";
+      }
+
+      function showTab(tab) {
+        UI.qsa(".tabs__btn").forEach(function (b) {
+          b.classList.toggle("is-active", b.dataset.tab === tab);
+        });
+        var panel = UI.qs("#panel");
+        panel.innerHTML = UI.loading("Loading…");
+        ({ overview: tabOverview, team: tabTeam, tasks: tabTasks, milestones: tabMilestones,
+           reports: tabReports, reviews: tabReviews, impact: tabImpact }[tab] || tabOverview)(panel);
+      }
+
+      // ---- Overview --------------------------------------------------------
+      function tabOverview(panel) {
+        var o = overview;
+        var pct = o.progress_pct;
+        var html = '<div class="kpi-grid">' +
+          kpi("Progress", pct + "%", "kpi--accent") +
+          kpi("Tasks done", o.tasks.completed + " / " + o.tasks.total, o.tasks.overdue ? "kpi--warning" : "") +
+          kpi("Overdue tasks", o.tasks.overdue, o.tasks.overdue ? "kpi--danger" : "kpi--success") +
+          kpi("Milestones approved", o.milestones.approved + " / " + o.milestones.total, "") +
+          kpi("Pending forms", o.pending_responsibility_forms, o.pending_responsibility_forms ? "kpi--warning" : "kpi--success") +
+          "</div>";
+        html += '<div class="split">';
+        html += panel2("Objectives", project.objectives) + panel2("Scope & deliverables",
+          [project.scope, project.deliverables].filter(Boolean).join("\n"));
+        html += panel2("Resources & evaluation",
+          [project.required_resources, project.evaluation_criteria].filter(Boolean).join("\n"));
+        html += panel2("Privacy & IP",
+          [project.privacy_constraints, project.ip_terms].filter(Boolean).join("\n"));
+        html += "</div>";
+        panel.innerHTML = html;
+      }
+      function kpi(label, value, variant) {
+        return '<div class="kpi ' + (variant || "") + '"><div class="kpi__label">' + UI.esc(label) +
+          '</div><div class="kpi__value">' + UI.esc(String(value)) + "</div></div>";
+      }
+      function panel2(title, body) {
+        if (!body) return "";
+        return '<section class="panel card" style="margin-bottom:var(--space-5)"><div class="panel__head">' +
+          '<h2 class="panel__title">' + UI.esc(title) + '</h2></div><div class="panel__body prose">' +
+          UI.esc(body).replace(/\n/g, "<br>") + "</div></section>";
+      }
+
+      // ---- Team ------------------------------------------------------------
+      async function tabTeam(panel) {
+        try { members = await API.get("/api/projects/" + id + "/members"); } catch (e) {}
+        var html = "";
+        if (isStaff()) {
+          html += '<div class="btn-group" style="margin-bottom:var(--space-5)">' +
+            '<button class="btn btn--primary btn--sm" id="find-team">Find matching students</button></div>';
+        }
+        html += '<div class="grid grid--2">' + members.map(memberCard).join("") + "</div>";
+        panel.innerHTML = html;
+
+        UI.qsa(".accept-invite").forEach(function (b) {
+          b.addEventListener("click", function () { respondInvite(b.dataset.mid, "active"); });
+        });
+        UI.qsa(".decline-invite").forEach(function (b) {
+          b.addEventListener("click", function () { respondInvite(b.dataset.mid, "declined"); });
+        });
+        UI.qsa(".responsibility-btn").forEach(function (b) {
+          b.addEventListener("click", function () { openResponsibility(b.dataset.mid); });
+        });
+        UI.qsa(".remove-member").forEach(function (b) {
+          b.addEventListener("click", async function () {
+            if (!confirm("Remove this member from the team?")) return;
+            try { await API.patch("/api/projects/" + id + "/members/" + b.dataset.mid, { status: "removed" });
+              UI.toast("Member removed.", "success"); tabTeam(panel); }
+            catch (e) { UI.toast(e.message, "error"); }
+          });
+        });
+        var find = UI.qs("#find-team");
+        if (find) find.addEventListener("click", openMatch);
+      }
+
+      function memberCard(m) {
+        var actions = "";
+        var mine = user && m.user_id === user.id;
+        if (mine && m.status === "invited") {
+          actions += '<button class="btn btn--primary btn--sm accept-invite" data-mid="' + m.id + '">Accept invitation</button>' +
+            '<button class="btn btn--ghost btn--sm decline-invite" data-mid="' + m.id + '">Decline</button>';
+        }
+        if (mine && m.status === "active" && !m.responsibility_accepted) {
+          actions += '<button class="btn btn--primary btn--sm responsibility-btn" data-mid="' + m.id + '">Accept responsibility form</button>';
+        }
+        if (isStaff() && m.status === "active") {
+          actions += '<button class="btn btn--ghost btn--sm remove-member" data-mid="' + m.id + '">Remove</button>';
+        }
+        return '<article class="card"><div class="card__header">' + UI.badge(m.status) +
+          '<span class="chip" style="pointer-events:none">' + UI.esc(m.team_role) + "</span></div>" +
+          '<h3 class="card__title">' + UI.esc(m.name || "Member") + "</h3>" +
+          '<p class="card__body">' + UI.esc(m.department || "") + (m.skills ? " · " + UI.esc(m.skills) : "") + "</p>" +
+          (m.match_score != null ? '<p class="muted" style="font-size:var(--fs-fine)">Match ' + m.match_score +
+            "% · " + UI.esc(m.match_reason || "") + "</p>" : "") +
+          '<div class="chip-row" style="margin-top:var(--space-3)">' +
+          (m.responsibility_accepted ? '<span class="badge badge--success">Responsibility accepted</span>'
+            : '<span class="badge badge--warning">Responsibility form pending</span>') + "</div>" +
+          '<div class="btn-group" style="margin-top:var(--space-4)">' + actions + "</div></article>";
+      }
+
+      async function respondInvite(mid, status) {
+        try {
+          await API.patch("/api/projects/" + id + "/members/" + mid, { status: status });
+          UI.toast(status === "active" ? "You joined the team." : "Invitation declined.", "success");
+          tabTeam(UI.qs("#panel"));
+        } catch (e) { UI.toast(e.message, "error"); }
+      }
+
+      function openResponsibility(mid) {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close aria-label="Close">×</button>' +
+          '<h3 class="modal__title">Accept your responsibility form</h3>' +
+          '<div class="field"><label class="field__label" for="r-role">Your role on the team</label>' +
+          '<input class="input" id="r-role" placeholder="e.g. Embedded Engineer"></div>' +
+          '<div class="field"><label class="field__label" for="r-resp">Responsibilities you agree to</label>' +
+          '<textarea class="input" id="r-resp" rows="3"></textarea></div>' +
+          '<label style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3)"><input type="checkbox" id="r-integrity"> I confirm academic integrity</label>' +
+          '<label style="display:flex;gap:var(--space-2);margin-bottom:var(--space-4)"><input type="checkbox" id="r-privacy"> I confirm I will respect data privacy</label>' +
+          '<button class="btn btn--primary btn--block" id="r-submit">Accept form</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#r-submit").addEventListener("click", async function () {
+          var payload = {
+            role: modal.querySelector("#r-role").value.trim() || "member",
+            responsibilities: modal.querySelector("#r-resp").value.trim() || null,
+            confirm_academic_integrity: modal.querySelector("#r-integrity").checked,
+            confirm_data_privacy: modal.querySelector("#r-privacy").checked,
+          };
+          UI.setBusy(this, true, "Saving…");
+          try {
+            await API.post("/api/projects/" + id + "/members/" + mid + "/responsibility", payload);
+            UI.toast("Responsibility form accepted.", "success"); close(); tabTeam(UI.qs("#panel"));
+          } catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      async function openMatch() {
+        UI.toast("Running deterministic matching…");
+        var res;
+        try { res = await API.get("/api/projects/" + id + "/match", { limit: 10 }); }
+        catch (e) { UI.toast(e.message, "error"); return; }
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel modal__panel--wide" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close aria-label="Close">×</button>' +
+          '<h3 class="modal__title">Matching students</h3>' +
+          '<p class="muted" style="font-size:var(--fs-caption)">' + UI.esc(res.algorithm) +
+          (res.missing_capabilities && res.missing_capabilities.length ? " · Missing capabilities: " + UI.esc(res.missing_capabilities.join(", ")) : "") +
+          (res.explanation ? "</p><p>" + UI.esc(res.explanation) : "") + "</p>" +
+          '<div class="grid grid--2">' + (res.candidates || []).map(function (c) {
+            return '<div class="card"><div class="card__header"><span class="match-score"><span class="match-score__value">' +
+              c.score + '</span> <span class="match-score__label">score</span></span></div>' +
+              '<h3 class="card__title">' + UI.esc(c.name) + "</h3>" +
+              '<p class="card__body">' + UI.esc(c.department || "") + " · " + UI.esc(c.experience || "") + "</p>" +
+              '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(c.reason || "") + "</p>" +
+              '<p style="font-size:var(--fs-fine)">Matched: ' + UI.esc((c.matched_skills || []).join(", ") || "—") + "</p>" +
+              '<button class="btn btn--primary btn--sm invite-btn" data-id="' + c.student_id +
+              '" data-score="' + c.score + '" data-reason="' + UI.esc(c.reason || "") + '">Invite to team</button></div>';
+          }).join("") + "</div></div>";
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        UI.qsa(".invite-btn", modal).forEach(function (b) {
+          b.addEventListener("click", async function () {
+            UI.setBusy(b, true, "Inviting…");
+            try {
+              await API.post("/api/projects/" + id + "/members", {}, {
+                student_id: b.dataset.id, team_role: "member",
+                match_score: b.dataset.score, match_reason: b.dataset.reason,
+              });
+              UI.toast("Invitation sent.", "success"); close(); tabTeam(UI.qs("#panel"));
+            } catch (e) { UI.setBusy(b, false); UI.toast(e.message, "error"); }
+          });
+        });
+      }
+
+      // ---- Tasks -----------------------------------------------------------
+      async function tabTasks(panel) {
+        var tasks;
+        try { tasks = await API.get("/api/projects/" + id + "/tasks"); }
+        catch (e) { panel.innerHTML = UI.errorState(e.message); return; }
+        var cols = ["todo", "in_progress", "under_review", "completed"];
+        var labels = { todo: "To do", in_progress: "In progress", under_review: "Under review", completed: "Completed" };
+        var html = isStaff() ? '<div class="btn-group" style="margin-bottom:var(--space-5)"><button class="btn btn--primary btn--sm" id="new-task">＋ New task</button></div>' : "";
+        html += '<div class="kanban">' + cols.map(function (col) {
+          var items = tasks.filter(function (t) { return t.status === col; });
+          return '<div class="kanban__col" data-status="' + col + '"><div class="kanban__head">' +
+            '<span class="kanban__title">' + labels[col] + '</span><span class="kanban__count">' + items.length + "</span></div>" +
+            '<div class="kanban__list">' + (items.length ? items.map(taskCard).join("")
+              : '<p class="muted" style="font-size:var(--fs-fine);padding:var(--space-2)">Empty</p>') + "</div></div>";
+        }).join("") + "</div>";
+        panel.innerHTML = html;
+        var nt = UI.qs("#new-task");
+        if (nt) nt.addEventListener("click", openTaskModal);
+        UI.qsa(".task-move").forEach(function (sel) {
+          sel.addEventListener("change", async function () {
+            try { await API.patch("/api/projects/" + id + "/tasks/" + sel.dataset.tid, { status: sel.value });
+              UI.toast("Task updated.", "success"); tabTasks(panel); }
+            catch (e) { UI.toast(e.message, "error"); }
+          });
+        });
+      }
+
+      function taskCard(t) {
+        var mine = user && t.assignee_id === user.id;
+        var canMove = isStaff() || mine;
+        var move = canMove
+          ? '<select class="select task-move" data-tid="' + t.id + '" aria-label="Task status">' +
+            ["todo", "in_progress", "under_review", "completed"].map(function (s) {
+              return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + UI.titleCase(s) + "</option>";
+            }).join("") + "</select>"
+          : "";
+        return '<div class="task-card"><div class="task-card__title">' + UI.esc(t.title) + "</div>" +
+          '<div class="task-card__meta">' + UI.badge(t.priority, { label: UI.titleCase(t.priority) }) +
+          '<span>' + UI.esc(t.assignee_name || "Unassigned") + "</span>" +
+          (t.due_date ? '<span class="task-card__due ' + (t.is_overdue ? "is-overdue" : "") + '">' + UI.fmtDate(t.due_date) + "</span>" : "") +
+          "</div>" + (move ? '<div style="margin-top:var(--space-3)">' + move + "</div>" : "") + "</div>";
+      }
+
+      function openTaskModal() {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button>' +
+          '<h3 class="modal__title">New task</h3>' +
+          '<div class="field"><label class="field__label">Title</label><input class="input" id="t-title" required></div>' +
+          '<div class="field"><label class="field__label">Description</label><textarea class="input" id="t-desc" rows="2"></textarea></div>' +
+          '<div class="form-grid"><div class="field"><label class="field__label">Assignee</label><select class="select" id="t-assignee">' +
+          '<option value="">Unassigned</option>' + members.filter(function (m) { return m.status === "active"; }).map(function (m) {
+            return '<option value="' + m.user_id + '">' + UI.esc(m.name) + "</option>"; }).join("") + "</select></div>" +
+          '<div class="field"><label class="field__label">Priority</label><select class="select" id="t-prio">' +
+          ["low", "medium", "high", "critical"].map(function (p) { return '<option value="' + p + '"' + (p === "medium" ? " selected" : "") + ">" + UI.titleCase(p) + "</option>"; }).join("") + "</select></div></div>" +
+          '<div class="field"><label class="field__label">Due date</label><input class="input" id="t-due" type="date"></div>' +
+          '<button class="btn btn--primary btn--block" id="t-submit">Create task</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#t-submit").addEventListener("click", async function () {
+          var payload = { title: modal.querySelector("#t-title").value.trim(), description: modal.querySelector("#t-desc").value.trim(),
+            priority: modal.querySelector("#t-prio").value, status: "todo" };
+          var a = modal.querySelector("#t-assignee").value; if (a) payload.assignee_id = parseInt(a, 10);
+          var d = modal.querySelector("#t-due").value; if (d) payload.due_date = d;
+          if (payload.title.length < 3) { UI.toast("Give the task a title.", "error"); return; }
+          UI.setBusy(this, true, "Creating…");
+          try { await API.post("/api/projects/" + id + "/tasks", payload); UI.toast("Task created.", "success"); close(); tabTasks(UI.qs("#panel")); }
+          catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      // ---- Milestones ------------------------------------------------------
+      async function tabMilestones(panel) {
+        var miles;
+        try { miles = await API.get("/api/projects/" + id + "/milestones"); }
+        catch (e) { panel.innerHTML = UI.errorState(e.message); return; }
+        var html = isStaff() ? '<div class="btn-group" style="margin-bottom:var(--space-5)"><button class="btn btn--primary btn--sm" id="new-ms">＋ New milestone</button></div>' : "";
+        html += miles.length
+          ? '<ul class="milestones">' + miles.map(function (m) {
+              return '<li class="milestone" data-status="' + m.status + '"><div class="milestone__dot"></div>' +
+                '<div class="milestone__card"><div class="milestone__title">' + UI.esc(m.name) + " " + UI.badge(m.status) + "</div>" +
+                '<p class="muted" style="font-size:var(--fs-fine)">' + (m.due_date ? "Due " + UI.fmtDate(m.due_date) : "No due date") + "</p>" +
+                (m.description ? '<p style="font-size:var(--fs-caption)">' + UI.esc(m.description) + "</p>" : "") +
+                (m.mentor_comment ? '<p class="muted" style="font-size:var(--fs-fine)">Mentor: ' + UI.esc(m.mentor_comment) + "</p>" : "") +
+                '<div class="btn-group">' + milestoneActions(m) + "</div></div></li>";
+            }).join("") + "</ul>"
+          : UI.emptyState("🏁", "No milestones yet", "A mentor can define milestones to structure the work.");
+        panel.innerHTML = html;
+        UI.qsa(".ms-submit").forEach(function (b) {
+          b.addEventListener("click", function () { msTransition(b.dataset.mid, "submitted_for_review"); });
+        });
+        UI.qsa(".ms-approve").forEach(function (b) { b.addEventListener("click", function () { msTransition(b.dataset.mid, "approved"); }); });
+        UI.qsa(".ms-changes").forEach(function (b) { b.addEventListener("click", function () { msTransition(b.dataset.mid, "changes_requested"); }); });
+        var nm = UI.qs("#new-ms");
+        if (nm) nm.addEventListener("click", openMilestoneModal);
+      }
+
+      function milestoneActions(m) {
+        var mine = myMembership();
+        var out = "";
+        if (["pending", "in_progress", "overdue"].indexOf(m.status) !== -1 && (mine || isStaff())) {
+          out += '<button class="btn btn--soft btn--sm ms-submit" data-mid="' + m.id + '">Submit for review</button>';
+        }
+        if (isStaff() && m.status === "submitted_for_review") {
+          out += '<button class="btn btn--primary btn--sm ms-approve" data-mid="' + m.id + '">Approve</button>' +
+            '<button class="btn btn--ghost btn--sm ms-changes" data-mid="' + m.id + '">Request changes</button>';
+        }
+        return out;
+      }
+
+      async function msTransition(mid, status) {
+        try { await API.patch("/api/projects/" + id + "/milestones/" + mid, { status: status });
+          UI.toast("Milestone updated.", "success"); tabMilestones(UI.qs("#panel")); }
+        catch (e) { UI.toast(e.message, "error"); }
+      }
+
+      function openMilestoneModal() {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button><h3 class="modal__title">New milestone</h3>' +
+          '<div class="field"><label class="field__label">Name</label><input class="input" id="ms-name"></div>' +
+          '<div class="field"><label class="field__label">Description</label><textarea class="input" id="ms-desc" rows="2"></textarea></div>' +
+          '<div class="field"><label class="field__label">Expected deliverables</label><textarea class="input" id="ms-deliv" rows="2"></textarea></div>' +
+          '<div class="field"><label class="field__label">Due date</label><input class="input" id="ms-due" type="date"></div>' +
+          '<button class="btn btn--primary btn--block" id="ms-submit">Create milestone</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#ms-submit").addEventListener("click", async function () {
+          var payload = { name: modal.querySelector("#ms-name").value.trim(),
+            description: modal.querySelector("#ms-desc").value.trim() || null,
+            expected_deliverables: modal.querySelector("#ms-deliv").value.trim() || null };
+          var d = modal.querySelector("#ms-due").value; if (d) payload.due_date = d;
+          if (payload.name.length < 3) { UI.toast("Give the milestone a name.", "error"); return; }
+          UI.setBusy(this, true, "Creating…");
+          try { await API.post("/api/projects/" + id + "/milestones", payload); UI.toast("Milestone created.", "success"); close(); tabMilestones(UI.qs("#panel")); }
+          catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      // ---- Reports ---------------------------------------------------------
+      async function tabReports(panel) {
+        var reports, evidence;
+        try { reports = await API.get("/api/projects/" + id + "/reports"); } catch (e) { reports = []; }
+        try { evidence = await API.get("/api/projects/" + id + "/evidence"); } catch (e) { evidence = []; }
+        var html = "";
+        if (myMembership() || isStaff()) {
+          html += '<div class="btn-group" style="margin-bottom:var(--space-5)">' +
+            '<button class="btn btn--primary btn--sm" id="new-report">＋ Weekly report</button>' +
+            '<button class="btn btn--secondary btn--sm" id="new-evidence">＋ Add evidence</button></div>';
+        }
+        html += '<div class="grid grid--2"><div><section class="panel card"><div class="panel__head">' +
+          '<h2 class="panel__title">Weekly reports</h2></div><div class="panel__body' +
+          (reports.length ? " panel__body--flush" : "") + '">' +
+          (reports.length ? reports.map(function (r) {
+            return '<div class="detail-row"><div><strong>' + UI.esc(r.student_name || "Student") + " · " + UI.fmtDate(r.week_of) + "</strong>" +
+              '<p style="font-size:var(--fs-caption)"><strong>Done:</strong> ' + UI.esc(r.completed_work) + "</p>" +
+              '<p style="font-size:var(--fs-caption)"><strong>Progress:</strong> ' + UI.esc(r.current_progress) + "</p>" +
+              (r.blockers ? '<p style="font-size:var(--fs-caption)"><strong>Blocker:</strong> ' + UI.esc(r.blockers) + "</p>" : "") +
+              "</div></div>";
+          }).join("") : "<p class='muted'>No reports submitted yet.</p>") + "</div></section></div>";
+        html += '<div><section class="panel card"><div class="panel__head"><h2 class="panel__title">Evidence</h2></div>' +
+          '<div class="panel__body' + (evidence.length ? " panel__body--flush" : "") + '">' +
+          (evidence.length ? evidence.map(function (ev) {
+            return '<div class="detail-row"><div><strong>' + UI.esc(ev.title) + "</strong> " + UI.badge(ev.kind, { label: UI.titleCase(ev.kind) }) +
+              '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(ev.uploader_name || "") + " · " + UI.fmtDate(ev.created_at) + "</p>" +
+              (ev.description ? '<p style="font-size:var(--fs-caption)">' + UI.esc(ev.description) + "</p>" : "") +
+              (ev.url ? '<a class="btn btn--ghost btn--sm" href="' + UI.esc(ev.url) + '" target="_blank" rel="noopener">Open</a>' : "") +
+              "</div></div>";
+          }).join("") : "<p class='muted'>No evidence uploaded yet.</p>") + "</div></section></div></div>";
+        panel.innerHTML = html;
+        var nr = UI.qs("#new-report"); if (nr) nr.addEventListener("click", openReportModal);
+        var ne = UI.qs("#new-evidence"); if (ne) ne.addEventListener("click", openEvidenceModal);
+      }
+
+      function openReportModal() {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button><h3 class="modal__title">Weekly report</h3>' +
+          '<div class="field"><label class="field__label">Week of</label><input class="input" id="rp-week" type="date"></div>' +
+          '<div class="field"><label class="field__label">Completed work</label><textarea class="input" id="rp-done" rows="2" required></textarea></div>' +
+          '<div class="field"><label class="field__label">Current progress</label><textarea class="input" id="rp-progress" rows="2" required></textarea></div>' +
+          '<div class="field"><label class="field__label">Blockers (if any)</label><textarea class="input" id="rp-blockers" rows="2"></textarea></div>' +
+          '<div class="field"><label class="field__label">Next steps</label><textarea class="input" id="rp-next" rows="2"></textarea></div>' +
+          '<button class="btn btn--primary btn--block" id="rp-submit">Submit report</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#rp-submit").addEventListener("click", async function () {
+          var payload = { completed_work: modal.querySelector("#rp-done").value.trim(),
+            current_progress: modal.querySelector("#rp-progress").value.trim(),
+            blockers: modal.querySelector("#rp-blockers").value.trim() || null,
+            next_steps: modal.querySelector("#rp-next").value.trim() || null };
+          var w = modal.querySelector("#rp-week").value; if (w) payload.week_of = w;
+          if (payload.completed_work.length < 3 || payload.current_progress.length < 3) { UI.toast("Fill in work and progress.", "error"); return; }
+          UI.setBusy(this, true, "Submitting…");
+          try { await API.post("/api/projects/" + id + "/reports", payload); UI.toast("Report submitted.", "success"); close(); tabReports(UI.qs("#panel")); }
+          catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      function openEvidenceModal() {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button><h3 class="modal__title">Add evidence</h3>' +
+          '<div class="field"><label class="field__label">Title</label><input class="input" id="ev-title"></div>' +
+          '<div class="field"><label class="field__label">Link (optional)</label><input class="input" id="ev-url" placeholder="https://"></div>' +
+          '<div class="field"><label class="field__label">Kind</label><select class="select" id="ev-kind">' +
+          ["document", "photo", "video", "code", "dataset", "other"].map(function (k) { return '<option value="' + k + '">' + UI.titleCase(k) + "</option>"; }).join("") + "</select></div>" +
+          '<div class="field"><label class="field__label">Description</label><textarea class="input" id="ev-desc" rows="2"></textarea></div>' +
+          '<button class="btn btn--primary btn--block" id="ev-submit">Add evidence</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#ev-submit").addEventListener("click", async function () {
+          var payload = { title: modal.querySelector("#ev-title").value.trim(),
+            url: modal.querySelector("#ev-url").value.trim() || null,
+            kind: modal.querySelector("#ev-kind").value,
+            description: modal.querySelector("#ev-desc").value.trim() || null };
+          if (payload.title.length < 2) { UI.toast("Give the evidence a title.", "error"); return; }
+          UI.setBusy(this, true, "Saving…");
+          try { await API.post("/api/projects/" + id + "/evidence", payload); UI.toast("Evidence added.", "success"); close(); tabReports(UI.qs("#panel")); }
+          catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      // ---- Reviews ---------------------------------------------------------
+      async function tabReviews(panel) {
+        var reviews;
+        try { reviews = await API.get("/api/projects/" + id + "/reviews"); }
+        catch (e) { panel.innerHTML = UI.errorState(e.message); return; }
+        var html = isStaff() ? '<div class="btn-group" style="margin-bottom:var(--space-5)"><button class="btn btn--primary btn--sm" id="new-review">＋ Add mentor review</button></div>' : "";
+        html += reviews.length
+          ? '<div class="stack">' + reviews.map(function (r) {
+              return '<div class="detail-row"><div><strong>' + UI.esc(r.reviewer_name || "Mentor") + "</strong> " +
+                UI.badge(r.verdict, { label: UI.titleCase(r.verdict) }) +
+                (r.rating ? " " + "★".repeat(r.rating) : "") +
+                '<p style="font-size:var(--fs-caption)">' + UI.esc(r.comments) + "</p>" +
+                (r.risks ? '<p class="muted" style="font-size:var(--fs-fine)">Risks: ' + UI.esc(r.risks) + "</p>" : "") +
+                '<p class="muted" style="font-size:var(--fs-fine)">' + UI.fmtDateTime(r.created_at) + "</p></div></div>";
+            }).join("") + "</div>"
+          : UI.emptyState("📝", "No mentor reviews yet", "Reviews appear here when a mentor evaluates progress.");
+        panel.innerHTML = html;
+        var nr = UI.qs("#new-review"); if (nr) nr.addEventListener("click", openReviewModal);
+      }
+
+      function openReviewModal() {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML = '<div class="modal__scrim" data-close></div><div class="modal__panel" role="dialog" aria-modal="true">' +
+          '<button class="modal__close" data-close>×</button><h3 class="modal__title">Mentor review</h3>' +
+          '<div class="field"><label class="field__label">Verdict</label><select class="select" id="rv-verdict">' +
+          ["approved", "changes_requested", "neutral"].map(function (v) { return '<option value="' + v + '">' + UI.titleCase(v) + "</option>"; }).join("") + "</select></div>" +
+          '<div class="field"><label class="field__label">Rating (1–5, optional)</label><input class="input" id="rv-rating" type="number" min="1" max="5"></div>' +
+          '<div class="field"><label class="field__label">Comments</label><textarea class="input" id="rv-comments" rows="3" required></textarea></div>' +
+          '<div class="field"><label class="field__label">Risks</label><textarea class="input" id="rv-risks" rows="2"></textarea></div>' +
+          '<button class="btn btn--primary btn--block" id="rv-submit">Save review</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#rv-submit").addEventListener("click", async function () {
+          var payload = { verdict: modal.querySelector("#rv-verdict").value,
+            comments: modal.querySelector("#rv-comments").value.trim(),
+            risks: modal.querySelector("#rv-risks").value.trim() || null };
+          var rt = modal.querySelector("#rv-rating").value; if (rt) payload.rating = parseInt(rt, 10);
+          if (payload.comments.length < 3) { UI.toast("Write your comments.", "error"); return; }
+          UI.setBusy(this, true, "Saving…");
+          try { await API.post("/api/projects/" + id + "/reviews", payload); UI.toast("Review saved.", "success"); close(); tabReviews(UI.qs("#panel")); }
+          catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+        });
+      }
+
+      // ---- Impact ----------------------------------------------------------
+      async function tabImpact(panel) {
+        var report = null;
+        try { report = await API.get("/api/projects/" + id + "/impact"); } catch (e) { report = null; }
+        var canEdit = myMembership() || isStaff();
+        var fields = [
+          ["original_problem", "Original problem"], ["objectives", "Objectives"], ["approach", "Approach"],
+          ["prior_solutions_considered", "Prior solutions considered"], ["reused_or_modified", "Reused or modified"],
+          ["tech_stack", "Tech stack"], ["prototype", "Prototype"], ["testing_evidence", "Testing evidence"],
+          ["limitations", "Limitations"], ["actual_results", "Actual results"],
+          ["community_feedback", "Community feedback"], ["cost_info", "Cost info"], ["follow_up", "Follow-up"],
+        ];
+        var html = "";
+        if (!report && !canEdit) {
+          panel.innerHTML = UI.emptyState("📈", "No impact report yet", "A verified impact report has not been recorded for this project.");
+          return;
+        }
+        html += '<section class="panel card"><div class="panel__head"><h2 class="panel__title">Impact report</h2>' +
+          (report ? '<p class="panel__sub">Verification: ' + UI.esc(UI.titleCase(report.verification_status)) + UI.demoTag(report.is_demo) + "</p>" : "") +
+          "</div><div class='panel__body'>";
+        if (canEdit) {
+          html += '<form id="impact-form">' + fields.map(function (f) {
+            return '<div class="field"><label class="field__label">' + f[1] + "</label>" +
+              '<textarea class="input" id="im-' + f[0] + '" rows="2">' + UI.esc(report ? report[f[0]] || "" : "") + "</textarea></div>";
+          }).join("");
+          html += '<div class="field"><label class="field__label">Verification status</label><select class="select" id="im-status">' +
+            ["proposed", "demonstrated", "verified", "long_term_unestablished"].map(function (v) {
+              return '<option value="' + v + '"' + (report && report.verification_status === v ? " selected" : "") + ">" + UI.titleCase(v) + "</option>";
+            }).join("") + "</select>" +
+            (isStaff() ? "" : '<span class="field__hint">Only university staff can mark impact as verified.</span>') + "</div>" +
+            '<button class="btn btn--primary" type="submit">Save impact report</button></form>';
+        } else {
+          html += fields.map(function (f) {
+            return report[f[0]] ? "<div><strong>" + f[1] + ":</strong> " + UI.esc(report[f[0]]) + "</div>" : "";
+          }).join("");
+        }
+        html += "</div></section>";
+        panel.innerHTML = html;
+        var form = UI.qs("#impact-form");
+        if (form) form.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var payload = { verification_status: UI.qs("#im-status").value };
+          fields.forEach(function (f) { var v = UI.qs("#im-" + f[0]).value.trim(); payload[f[0]] = v || null; });
+          var btn = form.querySelector("button");
+          UI.setBusy(btn, true, "Saving…");
+          try { await API.post("/api/projects/" + id + "/impact", payload); UI.toast("Impact report saved.", "success"); tabImpact(panel); }
+          catch (err) { UI.setBusy(btn, false); UI.toast(err.message, "error"); }
+        });
+      }
+
+      UI.qsa(".tabs__btn").forEach(function (b) {
+        b.addEventListener("click", function () { showTab(b.dataset.tab); });
+      });
+
+      App.ready.then(function (u) {
+        if (!u) { window.location.href = "/login.html?next=" + encodeURIComponent("/project.html?id=" + id); return; }
+        user = u;
+        boot();
+      });
+    })();
+  </script>
+</body>
+</html>

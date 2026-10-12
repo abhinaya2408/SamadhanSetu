@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administration — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container container--wide" style="padding-block:var(--space-7)">
+    <div class="page-head">
+      <span class="eyebrow">Administration</span>
+      <h1>Platform administration</h1>
+      <p class="lead">Verify organisations, manage accounts and inspect the audit trail. Only platform
+        administrators can access this page.</p>
+    </div>
+    <div id="gate"></div>
+
+    <div id="admin" hidden>
+      <div class="tabs">
+        <button class="tabs__btn is-active" data-tab="users" role="tab">Users</button>
+        <button class="tabs__btn" data-tab="universities" role="tab">Universities</button>
+        <button class="tabs__btn" data-tab="audit" role="tab">Audit trail</button>
+      </div>
+      <div id="panel" style="margin-top:var(--space-5)" aria-live="polite"></div>
+    </div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      function showTab(tab) {
+        UI.qsa(".tabs__btn").forEach(function (b) { b.classList.toggle("is-active", b.dataset.tab === tab); });
+        ({ users: tabUsers, universities: tabUniversities, audit: tabAudit }[tab] || tabUsers)();
+      }
+
+      async function tabUsers() {
+        var panel = UI.qs("#panel");
+        panel.innerHTML = UI.loading("Loading users…");
+        try {
+          var res = await API.get("/api/directory/users", { page: 1, page_size: 50 });
+          panel.innerHTML = '<section class="panel card"><div class="panel__head"><h2 class="panel__title">Users</h2>' +
+            '<p class="panel__sub">' + res.total + " accounts</p></div><div class='panel__body panel__body--flush'>" +
+            '<div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th><th>Verified</th><th></th></tr></thead><tbody>' +
+            res.items.map(function (u) {
+              return "<tr><td>" + UI.esc(u.full_name) + "</td><td>" + UI.esc(u.email) + "</td><td>" + UI.esc(App.roleLabel(u.role)) +
+                "</td><td>" + (u.is_active ? "Yes" : "No") + "</td><td>" + (u.is_verified ? "Yes" : "No") + "</td>" +
+                '<td><div class="btn-group"><button class="btn btn--ghost btn--sm toggle-active" data-id="' + u.id + '" data-v="' + (!u.is_active) + '">' +
+                (u.is_active ? "Deactivate" : "Activate") + "</button>" +
+                '<button class="btn btn--ghost btn--sm verify-user" data-id="' + u.id + '">Verify</button></div></td></tr>';
+            }).join("") + "</tbody></table></div></div></section>";
+          UI.qsa(".toggle-active").forEach(function (b) {
+            b.addEventListener("click", async function () {
+              try { await API.patch("/api/directory/users/" + b.dataset.id, { is_active: b.dataset.v === "true" });
+                UI.toast("Account updated.", "success"); tabUsers(); } catch (e) { UI.toast(e.message, "error"); }
+            });
+          });
+          UI.qsa(".verify-user").forEach(function (b) {
+            b.addEventListener("click", async function () {
+              try { await API.patch("/api/directory/users/" + b.dataset.id, { is_verified: true });
+                UI.toast("Marked verified.", "success"); tabUsers(); } catch (e) { UI.toast(e.message, "error"); }
+            });
+          });
+        } catch (e) { panel.innerHTML = UI.errorState(e.message); }
+      }
+
+      async function tabUniversities() {
+        var panel = UI.qs("#panel");
+        panel.innerHTML = UI.loading("Loading universities…");
+        try {
+          var res = await API.get("/api/directory/universities", { page: 1, page_size: 50 });
+          var form = '<section class="panel card" style="margin-bottom:var(--space-5)"><div class="panel__head">' +
+            '<h2 class="panel__title">Add a university</h2></div><div class="panel__body">' +
+            '<div class="form-grid"><div class="field"><label class="field__label">Name</label><input class="input" id="u-name"></div>' +
+            '<div class="field"><label class="field__label">Short name</label><input class="input" id="u-short"></div>' +
+            '<div class="field"><label class="field__label">City</label><input class="input" id="u-city"></div>' +
+            '<div class="field"><label class="field__label">Website</label><input class="input" id="u-site"></div></div>' +
+            '<button class="btn btn--primary btn--sm" id="u-add">Add university</button></div></section>';
+          panel.innerHTML = form + '<section class="panel card"><div class="panel__head"><h2 class="panel__title">Universities</h2></div>' +
+            "<div class='panel__body panel__body--flush'><div class='table-wrap'><table class='table'><thead><tr><th>Name</th><th>City</th><th>Departments</th><th>Projects</th></tr></thead><tbody>" +
+            res.items.map(function (u) {
+              return "<tr><td>" + UI.esc(u.name) + "</td><td>" + UI.esc(u.city || "—") + "</td><td class='num'>" +
+                u.department_count + "</td><td class='num'>" + u.project_count + "</td></tr>";
+            }).join("") + "</tbody></table></div></div></section>";
+          UI.qs("#u-add").addEventListener("click", async function () {
+            var name = UI.qs("#u-name").value.trim();
+            if (name.length < 3) { UI.toast("Enter the university name.", "error"); return; }
+            UI.setBusy(this, true, "Adding…");
+            try {
+              await API.post("/api/directory/universities", {
+                name: name, short_name: UI.qs("#u-short").value.trim() || null,
+                city: UI.qs("#u-city").value.trim() || null, website: UI.qs("#u-site").value.trim() || null,
+              });
+              UI.toast("University added.", "success"); tabUniversities();
+            } catch (e) { UI.setBusy(this, false); UI.toast(e.message, "error"); }
+          });
+        } catch (e) { panel.innerHTML = UI.errorState(e.message); }
+      }
+
+      async function tabAudit() {
+        var panel = UI.qs("#panel");
+        panel.innerHTML = UI.loading("Loading audit trail…");
+        try {
+          var res = await API.get("/api/audit", { page: 1, page_size: 60 });
+          panel.innerHTML = '<section class="panel card"><div class="panel__head"><h2 class="panel__title">Audit trail</h2>' +
+            '<p class="panel__sub">' + res.total + " recorded events</p></div><div class='panel__body panel__body--flush'>" +
+            (res.items.length ? '<div class="table-wrap"><table class="table"><thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Reason</th></tr></thead><tbody>' +
+              res.items.map(function (a) {
+                return "<tr><td>" + UI.fmtDateTime(a.created_at) + "</td><td>" + UI.esc(a.actor_name || "system") +
+                  "</td><td>" + UI.esc(a.action) + "</td><td>" + UI.esc((a.target_type || "") + (a.target_id ? " #" + a.target_id : "")) +
+                  "</td><td>" + UI.esc(a.reason || "—") + "</td></tr>";
+              }).join("") + "</tbody></table></div>"
+              : "<p class='muted' style='padding:var(--space-5)'>No audit events yet.</p>") +
+            "</div></section>";
+        } catch (e) { panel.innerHTML = UI.errorState(e.message); }
+      }
+
+      UI.qsa(".tabs__btn").forEach(function (b) { b.addEventListener("click", function () { showTab(b.dataset.tab); }); });
+
+      App.ready.then(function (u) {
+        var gate = UI.qs("#gate");
+        if (!u) { window.location.href = "/login.html?next=%2Fadmin.html"; return; }
+        if (u.role !== "admin") {
+          gate.innerHTML = UI.emptyState("🔒", "Administrators only",
+            "Your role (" + App.roleLabel(u.role) + ") cannot access platform administration.");
+          return;
+        }
+        UI.qs("#admin").hidden = false;
+        showTab("users");
+      });
+    })();
+  </script>
+</body>
+</html>

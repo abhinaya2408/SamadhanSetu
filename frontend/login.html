@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <header id="site-header"></header>
+  <main>
+    <div class="auth-shell">
+      <aside class="auth-aside">
+        <h2>Welcome back to the bridge.</h2>
+        <p class="lead">Sign in to track your submissions, review problems, or work on a project team.</p>
+        <ul class="feature-list">
+          <li><span class="tick" aria-hidden="true">✓</span><span><strong>Humans decide.</strong> Every decision is recorded with a reason.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span><strong>Demo data is labelled.</strong> Seeded records carry a visible tag.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span><strong>Honest AI.</strong> Screening assists; it never approves.</span></li>
+        </ul>
+      </aside>
+      <section class="auth-panel">
+        <div class="auth-card">
+          <h1>Sign in</h1>
+          <form id="login-form" novalidate>
+            <div class="field">
+              <label class="field__label" for="email">Email</label>
+              <input class="input" id="email" name="email" type="email" required autocomplete="email">
+              <span class="field__error" role="alert"></span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="password">Password</label>
+              <input class="input" id="password" name="password" type="password" required autocomplete="current-password">
+              <span class="field__error" role="alert"></span>
+            </div>
+            <button class="btn btn--primary btn--lg btn--block" type="submit" id="login-btn">Sign in</button>
+          </form>
+          <p style="margin-top:var(--space-4);font-size:var(--fs-caption)">
+            New here? <a href="/register.html">Create an account</a>
+          </p>
+
+          <div class="demo-creds">
+            <strong>Demonstration accounts</strong>
+            <p class="muted" style="font-size:var(--fs-fine);margin:var(--space-2) 0">All demo passwords: <code>DemoPass123!</code></p>
+            <table>
+              <tr><td>Citizen</td><td><code>ramesh.citizen@demo.in</code></td></tr>
+              <tr><td>Student</td><td><code>aarav.student@demo.edu</code></td></tr>
+              <tr><td>Faculty</td><td><code>meera.faculty@demo.edu</code></td></tr>
+              <tr><td>University admin</td><td><code>univadmin@demo.edu</code></td></tr>
+              <tr><td>Company</td><td><code>csr.tata@demo.in</code></td></tr>
+              <tr><td>Administrator</td><td><code>admin@samadhansetu.demo</code></td></tr>
+            </table>
+            <div class="btn-group" style="margin-top:var(--space-3)">
+              <button class="btn btn--soft btn--sm" data-fill="ramesh.citizen@demo.in">Fill citizen</button>
+              <button class="btn btn--soft btn--sm" data-fill="meera.faculty@demo.edu">Fill faculty</button>
+              <button class="btn btn--soft btn--sm" data-fill="admin@samadhansetu.demo">Fill admin</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      UI.qsa("[data-fill]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          UI.qs("#email").value = b.dataset.fill;
+          UI.qs("#password").value = "DemoPass123!";
+        });
+      });
+
+      var form = UI.qs("#login-form");
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        UI.clearFieldErrors(form);
+        var email = UI.qs("#email").value.trim();
+        var password = UI.qs("#password").value;
+        if (!email) { UI.showFieldError(form, "email", "Enter your email."); return; }
+        if (!password) { UI.showFieldError(form, "password", "Enter your password."); return; }
+
+        var btn = UI.qs("#login-btn");
+        UI.setBusy(btn, true, "Signing in…");
+        try {
+          await API.login(email, password);
+          var next = UI.param("next") || "/dashboard.html";
+          window.location.href = next;
+        } catch (err) {
+          UI.setBusy(btn, false);
+          UI.showFieldError(form, "password", err.message);
+          UI.toast(err.message, "error");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

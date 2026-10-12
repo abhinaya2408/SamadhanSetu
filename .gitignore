@@ -1,0 +1,29 @@
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local database & uploads
+instance/
+*.db
+*.sqlite3
+backend/app/uploads/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs & generated artifacts
+*.log
+logs/
+node_modules/

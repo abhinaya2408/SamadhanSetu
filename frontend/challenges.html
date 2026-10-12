@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approved problems — SamadhanSetu</title>
+  <meta name="description" content="Browse real problems approved for a student team, filtered by area and city.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container" style="padding-block:var(--space-7)">
+    <div class="page-head">
+      <h1>Approved problems</h1>
+      <p class="lead">Problems a human reviewer cleared for a student team. Excluded or declined
+        problems are never shown here.</p>
+    </div>
+
+    <div class="filters" style="margin-bottom:var(--space-5)">
+      <div class="field">
+        <label class="field__label" for="f-q">Search</label>
+        <input class="input" id="f-q" type="search" placeholder="water, drainage, lighting…">
+      </div>
+      <div class="field">
+        <label class="field__label" for="f-category">Area</label>
+        <select class="select" id="f-category"><option value="">All areas</option></select>
+      </div>
+      <div class="field">
+        <label class="field__label" for="f-city">City</label>
+        <select class="select" id="f-city"><option value="">All cities</option></select>
+      </div>
+      <div class="field">
+        <label class="field__label" for="f-sort">Show</label>
+        <select class="select" id="f-sort">
+          <option value="">All cleared problems</option>
+          <option value="approved">Awaiting a team</option>
+          <option value="in_project">Being worked on</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="field__label">&nbsp;</span>
+        <button class="btn btn--primary btn--block" id="f-clear">Clear filters</button>
+      </div>
+    </div>
+    <p class="muted" id="f-summary" style="font-size:var(--fs-caption);margin-bottom:var(--space-5)"></p>
+
+    <div class="grid grid--3" id="results" aria-live="polite"></div>
+    <div class="pagination" id="pager" style="margin-top:var(--space-6);justify-content:center"></div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      var CATEGORIES = ["water","electricity","transport","agriculture","waste","health",
+        "education","safety","accessibility","environment","other"];
+      var state = { page: 1, page_size: 9, q: "", category: "", city: "", status: "" };
+      var referenceLoaded = false;
+
+      function fillCategories() {
+        var catHost = UI.qs("#f-category");
+        var current = state.category;
+        catHost.innerHTML = '<option value="">All areas</option>' + CATEGORIES.map(function (c) {
+          return '<option value="' + c + '">' + UI.esc(UI.domainLabel(c)) + "</option>";
+        }).join("");
+        catHost.value = current || "";
+      }
+      fillCategories();
+
+      // The same domain vocabulary the reporting form uses, straight from the API.
+      UI.qs("#f-category").disabled = true;
+      API.reportingReference().then(function (ref) {
+        UI.setDomainLabels(ref.domains);
+        referenceLoaded = true;
+        fillCategories();
+        UI.qs("#f-category").disabled = false;
+        if (state.q || state.city || state.category) load();
+      }).catch(function () {
+        referenceLoaded = true;
+        UI.qs("#f-category").disabled = false;
+      });
+
+      var initialQ = UI.param("q");
+      if (initialQ) { state.q = initialQ; UI.qs("#f-q").value = initialQ; }
+      var initialCat = UI.param("category");
+      if (initialCat) { state.category = initialCat; catHost.value = initialCat; }
+      var initialCity = UI.param("city");
+      if (initialCity) state.city = initialCity;
+
+      // Filtering happens in the database, not in the browser: the API accepts
+      // search, category, city and status, and reports the cities it knows about.
+      async function load() {
+        var host = UI.qs("#results");
+        host.innerHTML = UI.loading("Loading problems…");
+        try {
+          var res = await API.get("/api/challenges", {
+            page: state.page, page_size: state.page_size,
+            status: state.status || null, category: state.category || null,
+            city: state.city || null, search: state.q || null,
+          });
+          var items = res.items || [];
+          fillCities(res.available_cities || []);
+          UI.qs("#f-summary").textContent = items.length
+            ? "Showing " + items.length + " of " + res.total + " cleared problems" +
+              (state.city ? " in " + state.city : "") +
+              (state.category ? " · " + UI.domainLabel(state.category) : "") +
+              (state.q ? ' · matching "' + state.q + '"' : "") + "."
+            : "";
+          if (!items.length) {
+            host.innerHTML = UI.emptyState("🔎", "No matching problems",
+              "Try a different search, area or city. Only reviewer-approved problems appear here.");
+            UI.pagination(UI.qs("#pager"), 1, 1, function () {});
+            return;
+          }
+          host.innerHTML = items.map(card).join("");
+          UI.pagination(UI.qs("#pager"), res.page, res.pages, function (p) {
+            state.page = p; load(); window.scrollTo({ top: 0, behavior: "smooth" });
+          });
+        } catch (e) {
+          host.innerHTML = UI.errorState(e.message);
+        }
+      }
+
+      function fillCities(cities) {
+        var sel = UI.qs("#f-city");
+        var current = state.city;
+        sel.innerHTML = '<option value="">All cities</option>' + cities.map(function (c) {
+          return '<option value="' + UI.esc(c) + '">' + UI.esc(c) + "</option>";
+        }).join("");
+        sel.value = current && cities.indexOf(current) !== -1 ? current : "";
+      }
+
+      function card(c) {
+        var place = [c.locality, c.city].filter(Boolean).join(", ") || c.location;
+        return '<a class="card card--hover card--link" href="/challenge.html?id=' + c.id + '">' +
+          '<div class="card__header">' + UI.badge(c.status) +
+          '<span class="chip" style="pointer-events:none">' + UI.esc(UI.domainLabel(c.category)) + '</span></div>' +
+          '<h3 class="card__title">' + UI.esc(c.title) + '</h3>' +
+          '<p class="card__body">' + UI.esc((c.description || "").slice(0, 140)) + '…</p>' +
+          (c.impact_label
+            ? '<p class="muted" style="font-size:var(--fs-fine)">Impact: ' + UI.esc(c.impact_label) +
+              (c.impact_is_estimate ? " (estimate)" : "") + '</p>'
+            : '') +
+          '<div class="card__footer">' +
+          (c.project ? '<span class="badge badge--primary">Has a team</span>' : '<span class="badge badge--neutral">No team yet</span>') +
+          '<span class="muted" style="font-size:var(--fs-fine)">' + (place ? "📍 " + UI.esc(place) : "") + '</span>' +
+          '</div></a>';
+      }
+
+      function apply() {
+        state.q = UI.qs("#f-q").value.trim();
+        state.category = UI.qs("#f-category").value;
+        state.city = UI.qs("#f-city").value;
+        state.status = UI.qs("#f-sort").value;
+        state.page = 1;
+        load();
+      }
+
+      ["#f-q", "#f-category", "#f-city", "#f-sort"].forEach(function (sel) {
+        var node = UI.qs(sel);
+        if (sel === "#f-q") {
+          node.addEventListener("input", UI.debounce(apply, 350));
+        } else {
+          node.addEventListener("change", apply);
+        }
+      });
+      UI.qs("#f-clear").addEventListener("click", function () {
+        UI.qs("#f-q").value = "";
+        UI.qs("#f-category").value = "";
+        UI.qs("#f-city").value = "";
+        UI.qs("#f-sort").value = "";
+        apply();
+      });
+
+      App.ready.then(load);
+    })();
+  </script>
+</body>
+</html>

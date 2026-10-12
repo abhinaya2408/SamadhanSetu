@@ -1,0 +1,81 @@
+/* ==========================================================================
+   SamadhanSetu — responsive.css
+   Supplemental responsive rules layered on top of design-system.css /
+   styles.css / dashboard.css. Breakpoint tokens:
+   640 / 834 / 1068 / 1280 / 1440 (see DESIGN.md)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Tables become stacked cards on small screens.
+   Usage: <table class="table table--stack" data-label-col="..."> — cells that
+   carry a `data-label` attribute render their label inline.
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .table--stack thead {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .table--stack, .table--stack tbody, .table--stack tr, .table--stack td {
+    display: block;
+    width: 100%;
+  }
+  .table--stack tr {
+    border-bottom: 1px solid var(--color-hairline);
+    padding: var(--space-3) 0;
+  }
+  .table--stack tr:last-child { border-bottom: 0; }
+  .table--stack td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    border: 0;
+    padding: var(--space-2) var(--space-4);
+    text-align: right;
+  }
+  .table--stack td::before {
+    content: attr(data-label);
+    font-size: var(--fs-badge);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    color: var(--color-muted);
+    font-weight: var(--fw-semibold);
+    text-align: left;
+    flex: none;
+  }
+  .table--stack td[data-label=""]::before { content: none; }
+  .table--stack td > * { text-align: right; }
+}
+
+/* --------------------------------------------------------------------------
+   Wide / desktop refinements
+   -------------------------------------------------------------------------- */
+
+@media (min-width: 1281px) {
+  .app-main { padding: var(--space-7) var(--space-6); }
+}
+
+/* Very wide screens: content locks, gutters absorb the rest */
+@media (min-width: 1600px) {
+  .hero__inner { gap: var(--space-9); }
+}
+
+/* Short viewports: keep sticky sidebar from covering the fold */
+@media (max-height: 560px) {
+  .app-sidebar { position: static; height: auto; }
+}
+
+/* Coarse pointers: enlarge hit areas slightly */
+@media (pointer: coarse) {
+  .sidebar-link, .site-nav__link { min-height: 44px; display: flex; align-items: center; }
+  .chip { padding: 8px 14px; }
+  .table td { padding-block: var(--space-4); }
+}
+
+/* Print: expand panels, drop shadows */
+@media print {
+  .panel, .card, .kpi { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  a[href]::after { content: ""; }
+}

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create an account — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <header id="site-header"></header>
+  <main>
+    <div class="auth-shell">
+      <aside class="auth-aside">
+        <h2>Join the bridge between problems and solutions.</h2>
+        <p class="lead">Choose the role that matches you. Some roles are reviewed before they can act.</p>
+        <ul class="feature-list">
+          <li><span class="tick" aria-hidden="true">✓</span><span><strong>Citizens</strong> report real problems in their own words.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span><strong>Students</strong> join teams and build verified prototypes.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span><strong>Faculty &amp; universities</strong> review, mentor and verify.</span></li>
+          <li><span class="tick" aria-hidden="true">✓</span><span><strong>Companies</strong> sponsor projects and offer opportunities.</span></li>
+        </ul>
+        <p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-4)">
+          Platform administrator accounts are provisioned by the operators and cannot be created here.
+        </p>
+      </aside>
+      <section class="auth-panel">
+        <div class="auth-card" style="width:min(560px,100%)">
+          <h1>Create your account</h1>
+          <form id="register-form" novalidate>
+            <div class="field">
+              <label class="field__label" for="role">I am registering as</label>
+              <select class="select" id="role" name="role">
+                <option value="citizen">Citizen — report a problem</option>
+                <option value="student">Student</option>
+                <option value="faculty">Faculty / mentor</option>
+                <option value="university_admin">University administrator</option>
+                <option value="company">Company / sponsor</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field__label" for="full_name">Full name</label>
+              <input class="input" id="full_name" name="full_name" required minlength="2" maxlength="200" autocomplete="name">
+              <span class="field__error" role="alert"></span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="email">Email</label>
+              <input class="input" id="email" name="email" type="email" required autocomplete="email">
+              <span class="field__error" role="alert"></span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="password">Password</label>
+              <input class="input" id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+              <span class="field__hint">At least 8 characters.</span>
+              <span class="field__error" role="alert"></span>
+            </div>
+
+            <div id="role-fields"></div>
+
+            <button class="btn btn--primary btn--lg btn--block" type="submit" id="register-btn">Create account</button>
+            <p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">
+              By creating an account you agree to respect academic integrity and personal data privacy.
+            </p>
+          </form>
+          <p style="margin-top:var(--space-4);font-size:var(--fs-caption)">
+            Already have an account? <a href="/login.html">Sign in</a>
+          </p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      var universities = [];
+      var departments = [];
+
+      function uniOptions() {
+        return universities.map(function (u) {
+          return { value: u.id, label: u.name + (u.city ? " — " + u.city : "") };
+        });
+      }
+
+      function renderRoleFields() {
+        var role = UI.qs("#role").value;
+        var host = UI.qs("#role-fields");
+        if (role === "student" || role === "faculty" || role === "university_admin") {
+          host.innerHTML = UI.field("university_id", "University", { type: "select", options: [{ value: "", label: "Select a university" }].concat(uniOptions()) }) +
+            (role !== "university_admin" ? UI.field("department_id", "Department", { type: "select", options: [{ value: "", label: "Select a department" }] }) : "") +
+            (role === "faculty" ? UI.field("faculty_title", "Academic title", { placeholder: "e.g. Associate Professor" }) : "");
+          if (role === "student" || role === "faculty") {
+            var uniSel = UI.qs('[name="university_id"]');
+            if (uniSel) uniSel.addEventListener("change", loadDepartments);
+          }
+        } else if (role === "company") {
+          host.innerHTML = UI.field("company_name", "Company name", { required: true }) +
+            UI.field("company_industry", "Industry") +
+            UI.field("company_website", "Website", { placeholder: "https://" });
+        } else {
+          host.innerHTML = "";
+        }
+      }
+
+      async function loadUniversities() {
+        try {
+          var res = await API.get("/api/directory/universities", { page: 1, page_size: 100 });
+          universities = res.items || [];
+        } catch (e) { universities = []; }
+      }
+
+      async function loadDepartments() {
+        var uid = UI.qs('[name="university_id"]');
+        var deptSel = UI.qs('[name="department_id"]');
+        if (!uid || !deptSel || !uid.value) return;
+        try {
+          departments = await API.get("/api/directory/departments", { university_id: uid.value });
+          deptSel.innerHTML = '<option value="">Select a department</option>' +
+            departments.map(function (d) {
+              return '<option value="' + d.id + '">' + UI.esc(d.name + (d.full_name ? " — " + d.full_name : "")) + "</option>";
+            }).join("");
+        } catch (e) { /* ignore */ }
+      }
+
+      UI.qs("#role").addEventListener("change", renderRoleFields);
+
+      var form = UI.qs("#register-form");
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        UI.clearFieldErrors(form);
+        var payload = UI.formValues(form);
+        var ok = true;
+        if (!payload.full_name || payload.full_name.length < 2) { UI.showFieldError(form, "full_name", "Enter your name."); ok = false; }
+        if (!payload.email) { UI.showFieldError(form, "email", "Enter your email."); ok = false; }
+        if (!payload.password || payload.password.length < 8) { UI.showFieldError(form, "password", "Use at least 8 characters."); ok = false; }
+        if (payload.role === "company" && !payload.company_name) { UI.showFieldError(form, "company_name", "Company name is required."); ok = false; }
+        if (!ok) return;
+
+        ["university_id", "department_id"].forEach(function (k) {
+          if (payload[k]) payload[k] = parseInt(payload[k], 10); else delete payload[k];
+        });
+
+        var btn = UI.qs("#register-btn");
+        UI.setBusy(btn, true, "Creating…");
+        try {
+          await API.register(payload);
+          UI.toast("Account created. Welcome!", "success");
+          window.location.href = "/dashboard.html";
+        } catch (err) {
+          UI.setBusy(btn, false);
+          UI.showFieldError(form, "email", err.message);
+          UI.toast(err.message, "error", 6000);
+        }
+      });
+
+      App.ready.then(async function () {
+        await loadUniversities();
+        renderRoleFields();
+      });
+    })();
+  </script>
+</body>
+</html>

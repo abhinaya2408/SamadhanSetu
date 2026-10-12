@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projects — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container" style="padding-block:var(--space-7)">
+    <div class="page-head">
+      <h1>Student projects</h1>
+      <p class="lead" id="scope-note">Projects formed from problems approved for student innovation.</p>
+    </div>
+
+    <div class="filter-bar" style="margin-bottom:var(--space-6)">
+      <div class="field">
+        <label class="field__label" for="p-status">Status</label>
+        <select class="select" id="p-status">
+          <option value="">All statuses</option>
+          <option value="planning">Planning</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field__label" for="p-q">Search</label>
+        <input class="input" id="p-q" type="search" placeholder="Project title…">
+      </div>
+      <div class="field" style="align-self:end">
+        <button class="btn btn--primary btn--block" id="p-apply">Apply</button>
+      </div>
+    </div>
+
+    <div class="grid grid--3" id="results" aria-live="polite"></div>
+    <div class="pagination" id="pager" style="margin-top:var(--space-6);justify-content:center"></div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      var state = { page: 1, page_size: 9, status: "", q: "" };
+      var user = null;
+
+      function card(p) {
+        var sponsor = user && user.role === "company"
+          ? '<button class="btn btn--soft btn--sm sponsor-btn" data-id="' + p.id + '" data-title="' + UI.esc(p.title) + '">Propose sponsorship</button>'
+          : '<a class="btn btn--ghost btn--sm" href="/project.html?id=' + p.id + '">Details →</a>';
+        return '<article class="card card--hover"><div class="card__header">' + UI.badge(p.status) +
+          (p.difficulty ? '<span class="chip" style="pointer-events:none">' + UI.esc(UI.titleCase(p.difficulty)) + "</span>" : "") +
+          '</div><h3 class="card__title">' + UI.esc(p.title) + "</h3>" +
+          '<p class="card__body">' + UI.esc((p.problem_statement || "").slice(0, 140)) + "…</p>" +
+          '<div class="card__footer" style="flex-direction:column;align-items:stretch;gap:var(--space-3)">' +
+          '<div class="muted" style="font-size:var(--fs-fine)">' + UI.esc(p.university_name || "University not set") +
+          " · " + p.member_count + " members" + (p.deadline ? " · due " + UI.fmtDate(p.deadline) : "") + "</div>" +
+          '<div class="chip-row"><span class="badge badge--neutral">Progress ' + p.progress_pct + "%</span>" +
+          '<span class="badge badge--neutral">' + UI.esc(p.required_skills || "skills not set") + "</span></div>" +
+          '<div class="btn-group">' + sponsor + "</div>" +
+          "</div></article>";
+      }
+
+      async function load() {
+        var host = UI.qs("#results");
+        host.innerHTML = UI.loading("Loading projects…");
+        try {
+          var res = await API.get("/api/projects", {
+            page: state.page, page_size: state.page_size,
+            status: state.status || null, scope: user && user.role === "company" ? "all" : "auto",
+          });
+          var items = res.items || [];
+          if (state.q) {
+            var q = state.q.toLowerCase();
+            items = items.filter(function (p) { return p.title.toLowerCase().indexOf(q) !== -1; });
+          }
+          if (!items.length) {
+            host.innerHTML = UI.emptyState("📁", "No projects to show",
+              user && user.role === "company"
+                ? "There are no active or completed projects visible yet."
+                : "You may need to sign in, or you are not yet on a project team.");
+            UI.pagination(UI.qs("#pager"), 1, 1, function () {});
+            return;
+          }
+          host.innerHTML = items.map(card).join("");
+          UI.pagination(UI.qs("#pager"), res.page, res.pages, function (p) { state.page = p; load(); });
+          UI.qsa(".sponsor-btn").forEach(function (b) {
+            b.addEventListener("click", function () { openSponsor(b.dataset.id, b.dataset.title); });
+          });
+        } catch (e) {
+          host.innerHTML = UI.errorState(e.message);
+        }
+      }
+
+      function openSponsor(projectId, title) {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML =
+          '<div class="modal__scrim" data-close></div>' +
+          '<div class="modal__panel" role="dialog" aria-modal="true" aria-label="Propose sponsorship">' +
+          '<button class="modal__close" data-close aria-label="Close">×</button>' +
+          '<h3 class="modal__title">Propose a sponsorship</h3>' +
+          '<p class="muted">For: ' + UI.esc(title) + '</p>' +
+          '<div class="field"><label class="field__label" for="sp-kind">Kind</label>' +
+          '<select class="select" id="sp-kind">' +
+          ['funding', 'equipment', 'software', 'dataset', 'cloud', 'mentorship'].map(function (k) {
+            return '<option value="' + k + '">' + UI.titleCase(k) + "</option>";
+          }).join("") + "</select></div>" +
+          '<div class="form-grid"><div class="field"><label class="field__label" for="sp-amount">Amount (optional)</label>' +
+          '<input class="input" id="sp-amount" type="number" min="0" step="1000"></div>' +
+          '<div class="field"><label class="field__label" for="sp-currency">Currency</label>' +
+          '<input class="input" id="sp-currency" value="INR" maxlength="6"></div></div>' +
+          '<div class="field"><label class="field__label" for="sp-desc">Description</label>' +
+          '<textarea class="input" id="sp-desc" rows="3" placeholder="What are you offering?"></textarea></div>' +
+          '<button class="btn btn--primary btn--block" id="sp-submit">Send offer</button>' +
+          "</div>";
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#sp-submit").addEventListener("click", async function () {
+          var payload = {
+            kind: modal.querySelector("#sp-kind").value,
+            currency: modal.querySelector("#sp-currency").value || "INR",
+            description: modal.querySelector("#sp-desc").value.trim(),
+          };
+          var amt = modal.querySelector("#sp-amount").value;
+          if (amt) payload.amount = parseFloat(amt);
+          UI.setBusy(this, true, "Sending…");
+          try {
+            await API.post("/api/sponsorships", payload, { project_id: projectId });
+            UI.toast("Offer sent to the project mentor.", "success");
+            close();
+          } catch (e) {
+            UI.setBusy(this, false);
+            UI.toast(e.message, "error");
+          }
+        });
+      }
+
+      UI.qs("#p-apply").addEventListener("click", function () {
+        state.status = UI.qs("#p-status").value;
+        state.q = UI.qs("#p-q").value.trim();
+        state.page = 1;
+        load();
+      });
+
+      App.ready.then(function (u) {
+        user = u;
+        if (u && u.role === "student") UI.qs("#scope-note").textContent = "Only projects you are an active member of are shown.";
+        if (u && u.role === "company") UI.qs("#scope-note").textContent = "Active and completed projects you can support. Seeded records are labelled Demo data.";
+        load();
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <header id="site-header"></header>
+  <div class="app" id="app">
+    <aside class="app-sidebar" id="sidebar">
+      <div class="sidebar-role">
+        <div class="sidebar-role__avatar" id="avatar">•</div>
+        <div>
+          <div class="sidebar-role__name" id="side-name">…</div>
+          <div class="sidebar-role__role" id="side-role">…</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav" id="side-nav" aria-label="Sections"></nav>
+    </aside>
+    <main class="app-main" id="main">
+      <div class="app-topbar">
+        <div>
+          <h1 id="greeting">Dashboard</h1>
+          <p class="app-topbar__sub" id="greeting-sub">Loading your summary…</p>
+        </div>
+        <div class="chip-row" id="topbar-links"></div>
+      </div>
+      <div id="content" aria-live="polite"></div>
+    </main>
+  </div>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      var user = null;
+      var summary = {};
+      var actions = { items: [] };
+      var notifs = { items: [] };
+      var workItems = [];       // the current "Work" tab list, before filtering
+      var filters = { search: "", status: "", category: "" };
+      var tab = "overview";
+
+      var STATUS_VARIANT = {
+        submitted: "info", needs_clarification: "warning", pending_review: "warning",
+        approved: "success", accepted: "primary", in_project: "primary", completed: "success",
+        excluded_government: "danger", declined: "danger",
+        planning: "neutral", active: "primary", on_hold: "warning", cancelled: "danger",
+      };
+
+      var NAV = {
+        citizen: [
+          ["Overview", "overview", "▤"], ["My problems", "work", "◎"], ["Activity", "activity", "🔔"],
+        ],
+        student: [
+          ["Overview", "overview", "▤"], ["My projects & tasks", "work", "▦"],
+          ["Activity", "activity", "🔔"],
+        ],
+        faculty: [
+          ["Overview", "overview", "▤"], ["Review queue & projects", "work", "⚖"],
+          ["Activity", "activity", "🔔"],
+        ],
+        university_admin: [
+          ["Overview", "overview", "▤"], ["Review queue & projects", "work", "⚖"],
+          ["Activity", "activity", "🔔"],
+        ],
+        admin: [
+          ["Overview", "overview", "▤"], ["Review queue & projects", "work", "⚖"],
+          ["Audit & activity", "activity", "⚙"],
+        ],
+        company: [
+          ["Overview", "overview", "▤"], ["Sponsorships & talent", "work", "🤝"],
+          ["Activity", "activity", "🔔"],
+        ],
+      };
+
+      var LABELS = {
+        challenges_submitted: "Problems submitted", under_review: "Under review", approved: "Approved",
+        excluded: "Excluded (gov-dependent)", declined: "Declined", accepted: "Accepted / in project",
+        projects_public_updates: "Projects with updates",
+        active_projects: "Active projects", tasks_assigned: "Tasks assigned",
+        tasks_completed: "Tasks completed", tasks_overdue: "Tasks overdue",
+        milestones_completed: "Milestones approved", responsibility_forms_pending: "Forms pending",
+        projects_mentored: "Projects mentored", projects_total: "Projects",
+        milestones_pending_review: "Milestones to review", milestones_overdue: "Milestones overdue",
+        teams: "Teams", eligible_challenges: "Approved problems available",
+        projects_active: "Active projects", projects_completed: "Completed projects",
+        completion_rate_pct: "Completion rate (%)", teams_formed: "Teams formed",
+        projects_discovered: "Projects discoverable", offers_sent: "Offers sent",
+        accepted_commitments: "Accepted commitments", recorded_disbursements: "Recorded disbursements",
+        invitations_sent: "Invitations sent", invitations_accepted: "Invitations accepted",
+        declined_offers: "Declined offers",
+        users_total: "Users", challenges_total: "Problems", submissions: "Submissions",
+        sponsorship_offers: "Sponsorship offers", sponsorship_disbursed: "Disbursed (recorded)",
+        verified_impact_reports: "Verified impact reports", audit_events: "Audit events",
+        competitions: "Competitions", universities: "Universities", companies: "Companies",
+      };
+
+      function el(id) { return UI.qs("#" + id); }
+
+      // ---- navigation -------------------------------------------------------
+
+      function renderNav(role, counts) {
+        var items = NAV[role] || NAV.citizen;
+        el("side-nav").innerHTML = '<div class="sidebar-nav__label">Workspace</div>' +
+          items.map(function (it) {
+            return '<a class="sidebar-link' + (it[1] === tab ? " is-active" : "") + '" href="#' + it[1] +
+              '" data-tab="' + it[1] + '"><span class="sidebar-link__icon" aria-hidden="true">' + it[2] +
+              "</span>" + it[0] +
+              (counts && counts[it[1]] ? '<span class="sidebar-link__count">' + counts[it[1]] + "</span>" : "") +
+              "</a>";
+          }).join("");
+        UI.qsa("#side-nav .sidebar-link").forEach(function (a) {
+          a.addEventListener("click", function (e) {
+            e.preventDefault();
+            setTab(a.dataset.tab);
+          });
+        });
+      }
+
+      function setTab(next) {
+        tab = next;
+        UI.qsa("#side-nav .sidebar-link").forEach(function (a) {
+          a.classList.toggle("is-active", a.dataset.tab === next);
+        });
+        UI.qsa("[data-panel]").forEach(function (p) {
+          p.hidden = p.dataset.panel !== next;
+        });
+        if (window.location.hash !== "#" + next) {
+          history.replaceState(null, "", "#" + next);
+        }
+      }
+
+      // ---- overview ---------------------------------------------------------
+
+      function kpis() {
+        var keys = Object.keys(summary).filter(function (k) {
+          return typeof summary[k] === "number" && LABELS[k];
+        }).slice(0, 6);
+        if (!keys.length) return "";
+        return '<div class="kpi-grid">' + keys.map(function (k, i) {
+          var variant = ["kpi--accent", "kpi--success", "", "kpi--warning", "", "kpi--danger"][i % 6];
+          return '<div class="kpi ' + variant + '"><div class="kpi__label">' + UI.esc(LABELS[k]) +
+            '</div><div class="kpi__value">' + summary[k] + "</div></div>";
+        }).join("") + "</div>";
+      }
+
+      function statusSegments(byStatus) {
+        return Object.keys(byStatus || {}).sort().map(function (k) {
+          return { label: UI.titleCase(k), value: byStatus[k], variant: STATUS_VARIANT[k] || "neutral" };
+        });
+      }
+
+      function chartsPanel() {
+        var html = '<section class="panel card" style="margin-bottom:var(--space-6)">' +
+          '<div class="panel__head"><h2 class="panel__title">Where things stand</h2>' +
+          '<p class="panel__sub">Every number is computed from real records in this database. ' +
+          "No chart is simulated.</p></div>" +
+          '<div class="panel__body"><div class="insight-grid">';
+
+        var byStatus = summary.by_status || summary.challenges_by_status || null;
+        html += "<div>" + UI.donut(statusSegments(byStatus), {
+          title: "Records by status", totalLabel: "records",
+          emptyText: "No records to chart yet.",
+        }) + "</div>";
+
+        var byCategory = summary.challenges_by_category || summary.by_category || null;
+        if (byCategory) {
+          var rows = Object.keys(byCategory).sort(function (a, b) {
+            return byCategory[b] - byCategory[a];
+          }).slice(0, 8).map(function (k) {
+            return { label: UI.domainLabel(k), value: byCategory[k] };
+          });
+          html += "<div>" + UI.breakdown(rows, { emptyText: "No problems recorded yet." }) + "</div>";
+        } else {
+          html += "<div>" + UI.breakdown([], { emptyText: "Category breakdown is shown for reviewers." }) +
+            "</div>";
+        }
+        html += "</div><div style=\"margin-top:var(--space-5)\" id=\"month-chart\">" +
+          UI.loading("Building the monthly view…") + "</div></div></section>";
+        return html;
+      }
+
+      function monthSeries(items) {
+        var buckets = {};
+        var now = new Date();
+        var order = [];
+        for (var i = 5; i >= 0; i--) {
+          var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          var key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+          buckets[key] = 0;
+          order.push({ key: key, label: d.toLocaleDateString(undefined, { month: "short" }) });
+        }
+        items.forEach(function (it) {
+          if (!it.created_at) return;
+          var d = new Date(it.created_at);
+          if (isNaN(d.getTime())) return;
+          var key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+          if (key in buckets) buckets[key] += 1;
+        });
+        return order.map(function (o) { return { label: o.label, value: buckets[o.key] }; });
+      }
+
+      function actionItemsPanel() {
+        return '<section class="panel card" id="attention" style="margin-bottom:var(--space-6)">' +
+          '<div class="panel__head"><h2 class="panel__title">What needs your attention</h2>' +
+          '<p class="panel__sub">Built from real records — an empty list means you are up to date.</p>' +
+          "</div><div class=\"panel__body stack\">" +
+          (actions.items.length
+            ? actions.items.map(function (a) {
+                return '<a class="detail-row" href="' + UI.esc(a.link || "#") + '"><div><strong>' +
+                  UI.esc(a.title) + "</strong> " + UI.badge(a.status) +
+                  '<p class="muted" style="font-size:var(--fs-caption)">' + UI.esc(a.action) + "</p></div></a>";
+              }).join("")
+            : '<p class="muted">Nothing requires action right now.</p>') +
+          "</div></section>";
+      }
+
+      // ---- work tab (with filters) -----------------------------------------
+
+      function filterBar(options) {
+        return '<div class="filters" style="margin-bottom:var(--space-5)">' +
+          '<div class="field"><label class="field__label" for="w-search">Search</label>' +
+          '<input class="input" id="w-search" type="search" placeholder="' + UI.esc(options.placeholder || "Search…") +
+          '" value="' + UI.esc(filters.search) + '"></div>' +
+          '<div class="field"><label class="field__label" for="w-status">Status</label>' +
+          '<select class="select" id="w-status">' +
+          [["", "Any status"]].concat(options.statuses || []).map(function (pair) {
+            return '<option value="' + UI.esc(pair[0]) + '"' + (filters.status === pair[0] ? " selected" : "") +
+              ">" + UI.esc(pair[1]) + "</option>";
+          }).join("") + "</select></div>" +
+          (options.categories
+            ? '<div class="field"><label class="field__label" for="w-category">Area</label>' +
+              '<select class="select" id="w-category">' +
+              [["", "Any area"]].concat(options.categories).map(function (pair) {
+                return '<option value="' + UI.esc(pair[0]) + '"' +
+                  (filters.category === pair[0] ? " selected" : "") + ">" + UI.esc(pair[1]) + "</option>";
+              }).join("") + "</select></div>"
+            : "") +
+          '<div class="field"><span class="field__label">&nbsp;</span>' +
+          '<button class="btn btn--secondary btn--block" type="button" id="w-clear">Clear filters</button></div>' +
+          "</div>";
+      }
+
+      function applyFilters(items) {
+        var q = filters.search.trim().toLowerCase();
+        return items.filter(function (it) {
+          if (filters.status && it.status !== filters.status) return false;
+          if (filters.category && it.category !== filters.category) return false;
+          if (q) {
+            var hay = (it.title + " " + (it.category || "") + " " + (it.city || it.location || "") +
+              " " + (it.description || "")).toLowerCase();
+            if (hay.indexOf(q) === -1) return false;
+          }
+          return true;
+        });
+      }
+
+      function renderWorkList() {
+        var host = el("work-list");
+        if (!host) return;
+        var items = applyFilters(workItems);
+        el("work-count").textContent = items.length + " of " + workItems.length + " shown";
+        if (!items.length) {
+          host.innerHTML = UI.emptyState("🔍", "Nothing matches these filters",
+            workItems.length ? "Try clearing the filters." : "There is nothing here yet.");
+          return;
+        }
+        host.innerHTML = items.map(workRow).join("");
+      }
+
+      function workRow(it) {
+        if (it.kind === "notification") {
+          return '<li class="notif__item ' + (it.is_read ? "" : "is-unread") + '">' +
+            '<span class="notif__marker" aria-hidden="true"></span><div>' +
+            '<div class="notif__title">' + UI.esc(it.title) + "</div>" +
+            (it.body ? '<div class="notif__body">' + UI.esc(it.body) + "</div>" : "") + "</div>" +
+            '<span class="notif__time">' + UI.timeAgo(it.created_at) + "</span></li>";
+        }
+        var meta = [];
+        if (it.category) meta.push(UI.domainLabel(it.category));
+        if (it.city || it.location) meta.push(it.city || it.location);
+        if (it.progress_pct !== undefined && it.progress_pct !== null) meta.push("progress " + it.progress_pct + "%");
+        if (it.amount !== undefined && it.amount !== null) meta.push(UI.money(it.amount, it.currency));
+        if (it.due_date) meta.push("due " + UI.fmtDate(it.due_date));
+        meta.push(UI.fmtDate(it.created_at));
+        return '<a class="detail-row" href="' + UI.esc(it.link || "#") + '"><div><strong>' +
+          UI.esc(it.title) + "</strong> " + UI.badge(it.status) + " " + UI.demoTag(it.is_demo) +
+          '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(meta.filter(Boolean).join(" · ")) +
+          "</p></div></a>";
+      }
+
+      // ---- data loading -----------------------------------------------------
+
+      function loadWork() {
+        var role = user.role;
+        if (role === "citizen") {
+          return API.get("/api/challenges/mine", { page: 1, page_size: 50 }).then(function (res) {
+            workItems = (res.items || []).map(function (c) {
+              return { kind: "challenge", id: c.id, title: c.title, status: c.status, category: c.category,
+                       city: c.city, location: c.location, description: c.description,
+                       created_at: c.created_at, link: "/challenge.html?id=" + c.id };
+            });
+          });
+        }
+        if (role === "student") {
+          return API.get("/api/projects", { page: 1, page_size: 50 }).then(function (res) {
+            workItems = (res.items || []).map(function (p) {
+              return { kind: "project", id: p.id, title: p.title, status: p.status,
+                       progress_pct: p.progress_pct, created_at: p.created_at,
+                       link: "/project.html?id=" + p.id };
+            });
+          });
+        }
+        if (role === "company") {
+          return API.get("/api/sponsorships", { page: 1, page_size: 50, mine: true }).then(function (res) {
+            workItems = (res.items || []).map(function (s) {
+              return { kind: "sponsorship", id: s.id, title: s.project_title || "Sponsorship",
+                       status: s.status, amount: s.amount, currency: s.currency, is_demo: s.is_demo,
+                       created_at: s.created_at, link: "/projects.html" };
+            });
+          });
+        }
+        // staff
+        return Promise.all([
+          API.get("/api/projects", { page: 1, page_size: 50 }).catch(function () { return { items: [] }; }),
+          API.get("/api/challenges/queue", { page: 1, page_size: 50 }).catch(function () { return { items: [] }; }),
+        ]).then(function (res) {
+          var projects = (res[0].items || []).map(function (p) {
+            return { kind: "project", id: p.id, title: p.title, status: p.status,
+                     progress_pct: p.progress_pct, created_at: p.created_at,
+                     link: "/project.html?id=" + p.id };
+          });
+          var queue = (res[1].items || []).map(function (c) {
+            return { kind: "challenge", id: c.id, title: c.title, status: c.status, category: c.category,
+                     city: c.city, location: c.location, created_at: c.created_at,
+                     link: "/challenge.html?id=" + c.id };
+          });
+          workItems = queue.concat(projects);
+        });
+      }
+
+      function activityPanel() {
+        var html = '<section class="panel card"><div class="panel__head">' +
+          '<h2 class="panel__title">Notifications</h2>' +
+          '<button class="btn btn--ghost btn--sm" id="read-all">Mark all read</button></div>' +
+          '<div class="panel__body panel__body--flush"><ul class="notif">' +
+          (notifs.items.length
+            ? notifs.items.map(function (n) {
+                return '<li class="notif__item ' + (n.is_read ? "" : "is-unread") + '">' +
+                  '<span class="notif__marker" aria-hidden="true"></span><div>' +
+                  '<div class="notif__title">' + UI.esc(n.title) + "</div>" +
+                  (n.body ? '<div class="notif__body">' + UI.esc(n.body) + "</div>" : "") + "</div>" +
+                  '<span class="notif__time">' + UI.timeAgo(n.created_at) + "</span></li>";
+              }).join("")
+            : '<li class="notif__item"><div class="muted">No notifications yet.</div></li>') +
+          "</ul></div></section>";
+
+        if (user.role === "admin") {
+          html += '<section class="panel card" id="audit" style="margin-top:var(--space-6)">' +
+            '<div class="panel__head"><h2 class="panel__title">Audit trail</h2>' +
+            '<p class="panel__sub">Every consequential action, with the reason recorded.</p></div>' +
+            '<div class="panel__body" id="audit-list">' + UI.loading("Loading the audit trail…") +
+            "</div></section>";
+        } else {
+          html += '<section class="panel card" style="margin-top:var(--space-6)">' +
+            '<div class="panel__head"><h2 class="panel__title">Recently approved problems</h2>' +
+            '<p class="panel__sub">The same records other pages show — one connected system.</p></div>' +
+            '<div class="panel__body" id="recent-list">' + UI.loading("Loading…") + "</div></section>";
+        }
+        return html;
+      }
+
+      function loadActivityExtras() {
+        if (user.role === "admin") {
+          return API.get("/api/audit", { page: 1, page_size: 20 }).then(function (res) {
+            el("audit-list").innerHTML = (res.items || []).length
+              ? (res.items || []).map(function (a) {
+                  return '<div class="detail-row"><div><strong>' + UI.esc(UI.titleCase(a.action)) +
+                    "</strong><p class=\"muted\" style=\"font-size:var(--fs-fine)\">" +
+                    UI.esc(a.actor_name || "system") + " · " + UI.fmtDateTime(a.created_at) +
+                    (a.target_type ? " · " + UI.esc(a.target_type) + " #" + UI.esc(a.target_id || "") : "") +
+                    "</p>" + (a.reason ? '<p class="muted" style="font-size:var(--fs-fine)">' +
+                      UI.esc(a.reason) + "</p>" : "") + "</div></div>";
+                }).join("")
+              : '<p class="muted">No audit events yet.</p>';
+          }).catch(function (e) { el("audit-list").innerHTML = UI.errorState(e.message); });
+        }
+        return API.get("/api/challenges", { page: 1, page_size: 8 }).then(function (res) {
+          el("recent-list").innerHTML = (res.items || []).length
+            ? (res.items || []).map(function (c) {
+                return '<a class="detail-row" href="/challenge.html?id=' + c.id + '"><div><strong>' +
+                  UI.esc(c.title) + "</strong> " + UI.badge(c.status) +
+                  '<p class="muted" style="font-size:var(--fs-fine)">' +
+                  UI.esc(UI.domainLabel(c.category)) +
+                  (c.city ? " · " + UI.esc(c.city) : "") + " · " + UI.fmtDate(c.created_at) +
+                  "</p></div></a>";
+              }).join("")
+            : '<p class="muted">Nothing published yet.</p>';
+        }).catch(function (e) { el("recent-list").innerHTML = UI.errorState(e.message); });
+      }
+
+      function workTabTitle() {
+        return { citizen: "My reported problems", student: "My projects and tasks",
+                 company: "Sponsorships and talent", admin: "Review queue and projects",
+                 faculty: "Review queue and projects",
+                 university_admin: "Review queue and projects" }[user.role] || "Work";
+      }
+
+      function workStatusOptions() {
+        if (user.role === "citizen") {
+          return [["submitted", "Submitted"], ["needs_clarification", "Needs clarification"],
+                  ["pending_review", "Pending review"], ["approved", "Approved"],
+                  ["excluded_government", "Excluded (government-dependent)"], ["declined", "Declined"],
+                  ["accepted", "Accepted"], ["in_project", "In project"], ["completed", "Completed"]];
+        }
+        if (user.role === "student") {
+          return [["planning", "Planning"], ["active", "Active"], ["on_hold", "On hold"],
+                  ["completed", "Completed"]];
+        }
+        if (user.role === "company") {
+          return [["proposed", "Proposed"], ["under_review", "Under review"], ["accepted", "Accepted"],
+                  ["committed", "Committed"], ["disbursed", "Disbursed"], ["declined", "Declined"]];
+        }
+        return [["submitted", "Awaiting review"], ["needs_clarification", "Needs clarification"],
+                ["pending_review", "Pending review"], ["approved", "Approved"],
+                ["accepted", "Accepted by a university"], ["in_project", "In project"],
+                ["completed", "Completed"], ["excluded_government", "Excluded"], ["declined", "Declined"]];
+      }
+
+      function categoryOptions() {
+        var seen = {};
+        workItems.forEach(function (it) {
+          if (it.category) seen[it.category] = UI.domainLabel(it.category);
+        });
+        return Object.keys(seen).sort().map(function (k) { return [k, seen[k]]; });
+      }
+
+      async function render() {
+        var content = el("content");
+        var counts = {};
+        if (actions.items.length) counts.overview = actions.items.length;
+        if (notifs.items.filter(function (n) { return !n.is_read; }).length) {
+          counts.activity = notifs.items.filter(function (n) { return !n.is_read; }).length;
+        }
+        counts.work = workItems.length || undefined;
+        renderNav(user.role, counts);
+
+        content.innerHTML =
+          '<div data-panel="overview">' + kpis() + chartsPanel() + actionItemsPanel() + "</div>" +
+          '<div data-panel="work" hidden><section class="panel card"><div class="panel__head">' +
+          '<h2 class="panel__title">' + UI.esc(workTabTitle()) + "</h2>" +
+          '<p class="panel__sub" id="work-count">0 shown</p></div><div class="panel__body">' +
+          filterBar({ placeholder: "Search by title, area or city",
+                      statuses: workStatusOptions(),
+                      categories: categoryOptions() }) +
+          '<div id="work-list">' + UI.loading("Loading your records…") + "</div>" +
+          "</div></section></div>" +
+          '<div data-panel="activity" hidden>' + activityPanel() + "</div>";
+
+        setTab(window.location.hash.replace("#", "") || "overview");
+
+        // wire filters
+        var search = el("w-search");
+        if (search) search.addEventListener("input", UI.debounce(function () {
+          filters.search = search.value;
+          renderWorkList();
+        }, 200));
+        var statusSel = el("w-status");
+        if (statusSel) statusSel.addEventListener("change", function () {
+          filters.status = statusSel.value;
+          renderWorkList();
+        });
+        var catSel = el("w-category");
+        if (catSel) catSel.addEventListener("change", function () {
+          filters.category = catSel.value;
+          renderWorkList();
+        });
+        var clear = el("w-clear");
+        if (clear) clear.addEventListener("click", function () {
+          filters = { search: "", status: "", category: "" };
+          render();
+        });
+
+        var readAll = el("read-all");
+        if (readAll) readAll.addEventListener("click", function () {
+          API.post("/api/notifications/read-all", {}).then(function () {
+            UI.toast("All read.", "success");
+            App.refreshNotifications();
+            load();
+          }).catch(function (e) { UI.toast(e.message, "error"); });
+        });
+
+        renderWorkList();
+        loadActivityExtras();
+
+        // the monthly chart uses records this view is allowed to see
+        var seriesSource = user.role === "citizen" ? workItems : workItems;
+        var host = el("month-chart");
+        if (host) {
+          API.get(user.role === "citizen" ? "/api/challenges/mine" : "/api/challenges",
+            { page: 1, page_size: 100 }).then(function (res) {
+            var items = res.items || [];
+            host.innerHTML = '<h3 class="panel__title" style="font-size:1rem;margin-bottom:var(--space-3)">' +
+              "Problems reported per month</h3>" +
+              UI.bars(monthSeries(items), {
+                height: 170, title: "Problems reported per month",
+                emptyText: "No dated records to chart yet.",
+              }) +
+              '<p class="muted" style="font-size:var(--fs-fine)">Computed from the ' + items.length +
+              " dated records this view can read" +
+              (user.role === "citizen" ? " (your own reports)" : "") + ".</p>";
+          }).catch(function () {
+            host.innerHTML = '<p class="muted">The monthly view is unavailable for your role.</p>';
+          });
+        }
+        void seriesSource;
+      }
+
+      async function load() {
+        var content = el("content");
+        content.innerHTML = UI.loading("Loading your workspace…");
+        try {
+          var dash = await API.get("/api/dashboard");
+          summary = dash.summary || {};
+        } catch (e) {
+          content.innerHTML = UI.errorState(e.message);
+          return;
+        }
+        actions = await API.get("/api/dashboard/action-items").catch(function () { return { items: [] }; });
+        notifs = await API.get("/api/notifications", { page: 1, page_size: 8 })
+          .catch(function () { return { items: [] }; });
+
+        el("greeting").textContent = "Welcome, " + user.full_name.split(" ")[0];
+        el("greeting-sub").textContent = App.roleLabel(user.role) + " workspace overview";
+        el("topbar-links").innerHTML =
+          '<a class="btn btn--ghost btn--sm" href="/challenges.html">Explore problems</a>' +
+          (user.role === "citizen"
+            ? '<a class="btn btn--primary btn--sm" href="/submit.html">Report a problem</a>'
+            : '<a class="btn btn--secondary btn--sm" href="/projects.html">Projects</a>');
+
+        await loadWork();
+        await render();
+      }
+
+      App.ready.then(function (u) {
+        if (!u) {
+          var next = encodeURIComponent("/dashboard.html");
+          window.location.href = "/login.html?next=" + next;
+          return;
+        }
+        user = u;
+        el("avatar").textContent = App.initial(u.full_name);
+        el("side-name").textContent = u.full_name;
+        el("side-role").textContent = App.roleLabel(u.role);
+        var hash = window.location.hash.replace("#", "");
+        if (["overview", "work", "activity"].indexOf(hash) !== -1) tab = hash;
+        load();
+      });
+    })();
+  </script>
+</body>
+</html>
