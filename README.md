@@ -47,7 +47,15 @@ solution. AI assists with screening and matching; **humans make every decision.*
    is a transparent, deterministic weighted score with a written reason per student.
 6. **Student teams** accept a Responsibility Form, then work through tasks,
    milestones, evidence and weekly reports, reviewed by a mentor.
-7. **Competitions, sponsorships and impact reports** capture results honestly:
+7. **Students join through a clear, gated journey** (Revision 3):
+   a reviewer approves a problem → a coordinator **scopes a project** and opens it for
+   recruitment → it appears under **Projects you can join** with a transparent skill match →
+   the student **applies** (duplicates impossible; a database constraint enforces it) →
+   authorised staff **review, invite, accept or decline** → the student **accepts the
+   invitation and their responsibility form** → the team workspace becomes active and the
+   project shows under the student's own projects. Capacity is checked on the backend, so a
+   team can never be over-filled, and nobody becomes an active member before accepting.
+8. **Competitions, sponsorships and impact reports** capture results honestly:
    judge scores and execution progress are ranked **separately**, and only
    verified impact reports reach the public page.
 
@@ -159,9 +167,9 @@ All demonstration passwords are **`DemoPass123!`**.
 | Student | `imran.student@demo.edu` |
 | Student | `neha.student@demo.edu` |
 | Student | `rohit.student@demo.edu` |
-| Faculty / mentor | `meera.faculty@demo.edu` |
-| Faculty / mentor | `arjun.faculty@demo.edu` |
-| University admin | `univadmin@demo.edu` |
+| University & Faculty | `meera.faculty@demo.edu` |
+| University & Faculty | `arjun.faculty@demo.edu` |
+| University & Faculty (coordinator) | `univadmin@demo.edu` |
 | Company / sponsor | `csr.tata@demo.in` |
 | Company / sponsor | `econext@demo.in` |
 | Platform administrator | `admin@samadhansetu.demo` |
@@ -207,11 +215,29 @@ never treated as security.
 | Role | Can do |
 | --- | --- |
 | `citizen` | Submit problems, answer clarifications, track status |
-| `student` | Join teams, accept responsibility forms, work on tasks, submit reports/evidence |
-| `faculty` | Review problems, mentor projects, match students, review milestones, verify impact |
-| `university_admin` | Everything faculty can, plus accept challenges and manage the university |
+| `student` | Discover open projects, apply to join, accept invitations, work on tasks, submit reports/evidence |
+| `university_faculty` | **One combined login** for university staff. What a person may do is decided by their **capabilities** (below), not by a separate role. |
 | `company` | Browse opted-in students, propose sponsorships, record disbursements, send invitations |
 | `admin` | Platform administration, verify organisations, audit trail |
+
+### The combined University & Faculty role and its capabilities
+
+Revision 3 removed the confusing split between a *University administrator* login and a
+*Faculty / mentor* login. There is now **one** role — `university_faculty` — with one
+registration path and **one** dashboard. What that person can actually do is decided by
+capabilities stored on their account and enforced on the backend:
+
+| Capability | Grants |
+| --- | --- |
+| `challenge_reviewer` | Approve, clarify, exclude or decline a reported problem |
+| `project_mentor` | Mentor a project: tasks, milestones, applications, student matching |
+| `university_coordinator` | Open recruitment, finalise teams and oversee projects across the university |
+
+A mentor does **not** automatically become a coordinator. The dashboard adapts to the
+capabilities the signed-in user holds. Legacy `faculty` and `university_admin` accounts are
+folded into the combined role by a safe, idempotent migration in `database.py`
+(`_migrate_university_faculty_role`) that preserves every existing record and grants exactly
+the capabilities those accounts already effectively had. Platform administrator stays separate.
 
 Privacy rules: companies see students only when the student opted in to portfolio
 sharing; students see only projects they are active members of.
@@ -266,7 +292,9 @@ Interactive docs: `/docs` (Swagger) and `/redoc`.
 | Competitions (registration, submissions, judging, leaderboards) | `/api/competitions` |
 | Sponsorships | `/api/sponsorships` |
 | Talent discovery & invitations | `/api/talent` |
-| Dashboards, action items, impact, audit, public stats | `/api/dashboard`, `/api/impact`, `/api/audit`, `/api/public/stats` |
+| Student project discovery & applications | `GET /api/projects/open`, `POST /api/projects/{id}/apply`, `GET /api/projects/my-applications`, `GET|PATCH /api/projects/{id}/applications[/{aid}]`, `POST /api/projects/{id}/members/{mid}/respond`, `POST /api/projects/{id}/recruit` |
+| Own profile (incl. student skills used for matching) | `GET|PATCH /api/auth/me`, `GET|PATCH /api/auth/me/profile` |
+| Dashboards, action items, impact, audit, public stats, homepage overview | `/api/dashboard`, `/api/impact`, `/api/audit`, `/api/public/stats`, `/api/public/overview` |
 | Notifications & deadline scan | `/api/notifications` |
 | Directory (universities, departments) & admin | `/api/directory` |
 | Health | `/api/health` |
@@ -294,12 +322,44 @@ backend/app/
   seed.py            demonstration data (scenarios A & B)
   uploads/           private evidence storage (never served statically)
 frontend/
-  *.html             public pages, auth pages and role workspaces
-  assets/css/        design-system.css, styles.css, dashboard.css, responsive.css
+  *.html             public pages, auth pages and role workspaces (incl. profile.html)
+  assets/css/        design-system.css, styles.css, dashboard.css, home.css, responsive.css
+  assets/img/        locally stored SVG illustrations (hero, six-step journey, CTA)
   assets/js/         api.js, ui.js, app.js
 DESIGN.md            the unified visual design language + Revision 2 checklist
-tests/               self-contained end-to-end smoke test
+tests/
+  test_smoke.py      end-to-end smoke test (reporting, review, evidence, matching)
+  test_workflow.py   Revision 3 student journey (discovery → apply → invite → active project)
 ```
+
+---
+
+## Revision 3 — what changed
+
+**Homepage.** A new editorial hero ("Civic problem solving, reviewed by people.") with a
+locally stored SVG illustration, a trust line, genuine database-backed community
+intelligence, filterable problem cards, a six-stage illustrated journey, a solution-discovery
+section, a labelled student-interface preview, a warm final call to action and a rewritten
+footer with no dead links. All illustrations live in `frontend/assets/img/` and load without
+any network dependency.
+
+**Citizen reporting.** Three short steps with only *description, domain and city* required.
+A friendly **"This might already have been reported."** panel appears with up to three
+candidates and two explicit choices — *this is the same problem* / *this is a different
+problem* — and never discards the new report. The review step is headed **"Here's what we
+understood"** and the citizen's own words are always preserved. Submitting shows a
+self-contained confirmation with a reference, status, summary and a *Track this problem*
+button.
+
+**Problem page.** The default view is problem-focused (one-sentence summary, short
+explanation, who is affected, evidence, related-report count and the next step). Technical
+detail sits behind collapsible disclosures. Similarity is shown as a search signal, never as
+proof.
+
+**One University & Faculty login** with capabilities, a safe migration, a new profile page,
+and a complete student project-joining workflow (see above).
+
+Run the Revision 3 check with `python -m tests.test_workflow`.
 
 ---
 

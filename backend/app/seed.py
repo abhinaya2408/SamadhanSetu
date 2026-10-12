@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 
 from .core import security
 from .models import (
+    Capability,
     Challenge,
     ChallengeReview,
     Company,
@@ -78,12 +79,13 @@ def _days(n: int) -> dt.date:
 
 
 def _user(db: Session, email: str, name: str, role: str, *, verified: bool = False,
-          bio: str | None = None) -> User:
+          bio: str | None = None, capabilities: str | None = None) -> User:
     u = User(
         email=email,
         password_hash=security.hash_password(DEMO_PASSWORD),
         full_name=name,
         role=role,
+        capabilities=capabilities,
         is_verified=verified,
         is_active=True,
         bio=bio,
@@ -140,10 +142,15 @@ def _seed(db: Session) -> None:
     admin = _user(db, "admin@samadhansetu.demo", "Platform Administrator", Role.ADMIN, verified=True,
                   bio="Runs the platform; provisions staff accounts.")
 
-    faculty_meera = _user(db, "meera.faculty@demo.edu", "Dr. Meera Kulkarni", Role.FACULTY, verified=True,
-                          bio="EEE faculty, mentors civic infrastructure teams.")
-    faculty_arjun = _user(db, "arjun.faculty@demo.edu", "Prof. Arjun Deshmukh", Role.FACULTY, verified=True,
-                          bio="CSE faculty, mentors data and software teams.")
+    reviewer_caps = ",".join(sorted(Capability.DEFAULT_REVIEWER))
+    coordinator_caps = ",".join(sorted(Capability.DEFAULT_COORDINATOR))
+
+    faculty_meera = _user(db, "meera.faculty@demo.edu", "Dr. Meera Kulkarni", Role.UNIVERSITY_FACULTY,
+                          verified=True, capabilities=reviewer_caps,
+                          bio="EEE faculty and reviewer; mentors civic infrastructure teams.")
+    faculty_arjun = _user(db, "arjun.faculty@demo.edu", "Prof. Arjun Deshmukh", Role.UNIVERSITY_FACULTY,
+                          verified=True, capabilities=reviewer_caps,
+                          bio="CSE faculty and reviewer; mentors data and software teams.")
     db.add(FacultyProfile(user_id=faculty_meera.id, university_id=u1.id, department_id=d1_eee.id,
                           title="Associate Professor", expertise="embedded, sensors, power",
                           is_approved=True))
@@ -151,8 +158,11 @@ def _seed(db: Session) -> None:
                           title="Assistant Professor", expertise="machine learning, GIS, apps",
                           is_approved=True))
 
-    uni_admin = _user(db, "univadmin@demo.edu", "Registrar GEC Pune", Role.UNIVERSITY_ADMIN, verified=True)
-    db.add(FacultyProfile(user_id=uni_admin.id, university_id=u1.id, title="Administrator", is_approved=True))
+    uni_admin = _user(db, "univadmin@demo.edu", "Registrar GEC Pune", Role.UNIVERSITY_FACULTY,
+                      verified=True, capabilities=coordinator_caps,
+                      bio="University coordinator: reviews challenges, assigns mentors and finalises teams.")
+    db.add(FacultyProfile(user_id=uni_admin.id, university_id=u1.id, title="University Coordinator",
+                          is_approved=True))
 
     citizens = [
         _user(db, "ramesh.citizen@demo.in", "Ramesh Pawar", Role.CITIZEN,

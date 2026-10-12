@@ -30,9 +30,9 @@
       var id = parseInt(UI.param("id"), 10);
       var user = null;
       var challenge = null;
-      var data = { screenings: [], reviews: [], clarifications: [], related: null, solutions: null,
-                   corrections: [], attachments: [] };
-      var REVIEWER = ["admin", "faculty", "university_admin"];
+      var data = { screenings: [], reviews: [], clarifications: [], related: null,
+                   solutions: null, corrections: [], attachments: [] };
+      var REVIEWER = ["admin", "faculty", "university_admin", "university_faculty"];
       var OPEN = ["submitted", "needs_clarification", "pending_review"];
       var BLOCKED = ["excluded_government", "declined"];
 
@@ -54,6 +54,13 @@
         var map = {};
         data.corrections.forEach(function (c) { map[c.field] = c; });
         return map;
+      }
+
+      function disclosure(title, bodyHtml, open) {
+        if (!bodyHtml) return "";
+        return '<details class="disclosure"' + (open ? " open" : "") + '>' +
+          "<summary>" + UI.esc(title) + "</summary>" +
+          '<div class="disclosure__body stack">' + bodyHtml + "</div></details>";
       }
 
       function load() {
@@ -97,24 +104,24 @@
         return [
           { label: "Reported by a citizen", state: "done",
             detail: UI.fmtDate(c.created_at) + (c.city ? " · " + c.city : "") },
-          { label: "AI summary prepared", state: c.latest_screening ? "done" : "current",
+          { label: "AI understood it", state: c.latest_screening ? "done" : "current",
             detail: c.latest_screening
               ? (c.latest_screening.source === "groq" ? "Groq-assisted" : "Rules-based (no AI key configured)")
               : "Not analysed yet" },
-          { label: "Human review", state: blocked ? "blocked" : (reviewed ? "done" : "current"),
+          { label: "Under review", state: blocked ? "blocked" : (reviewed ? "done" : "current"),
             detail: blocked
               ? "Recorded as " + UI.titleCase(c.status) + " — this cannot enter the student pipeline"
               : (reviewed ? "A reviewer recorded a decision" : "Awaiting a reviewer") },
-          { label: "Accepted by a university", state: accepted ? "done" : (blocked ? "pending" : "pending"),
+          { label: "Accepted", state: accepted ? "done" : "pending",
             detail: accepted ? "A university has taken this on" : "Not yet accepted" },
-          { label: "Student project", state: hasProject ? (c.status === "completed" ? "done" : "current") : "pending",
+          { label: "Project started", state: hasProject ? (c.status === "completed" ? "done" : "current") : "pending",
             detail: hasProject ? c.project.title : "No project yet" },
-          { label: "Documented impact", state: c.status === "completed" ? "done" : "pending",
+          { label: "Outcome documented", state: c.status === "completed" ? "done" : "pending",
             detail: c.status === "completed" ? "A verified impact report closes the loop" : "Not yet documented" },
         ];
       }
 
-      // ---- summary blocks ---------------------------------------------------
+      // ---- summary ----------------------------------------------------------
 
       function correctedValue(field, original) {
         var map = correctionsByField();
@@ -137,97 +144,160 @@
         });
       }
 
-      function summaryPanel(c) {
-        var s = c.latest_screening;
-        if (!s) {
-          return '<section class="panel card"><div class="panel__head">' +
-            '<h2 class="panel__title">What this is about</h2>' +
-            '<p class="panel__sub">No automated summary has been produced yet.</p></div></section>';
-        }
-        var causes = jsonList(s.possible_causes);
-        var skills = jsonList(s.suggested_skills);
-        var missing = jsonList(s.missing_information);
-
-        var html = "";
-        html += '<div class="summary-hero"><p class="summary-hero__label">In simple words</p>' +
-          '<p class="summary-hero__text">' + UI.esc(s.simple_explanation || s.problem_summary || "—") + "</p>" +
-          (s.one_sentence && s.one_sentence !== s.simple_explanation
-            ? '<p class="muted" style="margin-top:var(--space-3);font-size:var(--fs-caption)">In one sentence: ' +
-              UI.esc(s.one_sentence) + "</p>"
-            : "") +
-          "</div>";
-
-        html += '<div class="insight-grid" style="margin-top:var(--space-5)">';
-        html += insightBlock("who_is_affected", "Who is affected",
-          s.who_is_affected || s.affected_users);
-        html += insightBlock("why_it_matters", "Why it matters", s.why_it_matters);
-        html += insightBlock("impact_summary", "Estimated impact", s.impact_summary,
-          { tone: /not verified|estimate/i.test(s.impact_summary || "") ? "warn" : undefined,
-            note: "Citizen figures are never presented as verified measurements." });
-        html += "</div>";
-
-        html += '<div class="insight-grid" style="margin-top:var(--space-4)">';
-        html += insightBlock("possible_causes", "Possible causes (unconfirmed)",
-          causes.length ? "<ul>" + causes.map(function (x) { return "<li>" + UI.esc(x) + "</li>"; }).join("") + "</ul>"
-                        : "No specific cause was proposed.",
-          { html: true, tone: "muted", note: "Hypotheses to investigate, not established facts." });
-        html += insightBlock("potential_solution", "A student team could try", s.potential_solution);
-        html += insightBlock("skills_required", "Skills this would need",
-          skills.length ? skills.join(", ") : "Not identified yet.");
-        html += "</div>";
-
+      function statusChips(s) {
         var flags = "";
         flags += '<span class="badge ' + (s.government_dependency ? "badge--danger" : "badge--success") + '">' +
           (s.government_dependency ? "Flagged: needs government action"
                                    : "No government dependency detected") + "</span>";
-        flags += '<span class="badge badge--info">Suitability: ' +
-          UI.esc(UI.titleCase(s.student_project_suitability)) + "</span>";
-        flags += '<span class="badge badge--neutral">AI suggests: ' +
-          UI.esc(UI.titleCase(s.recommendation)) + "</span>";
         flags += '<span class="badge badge--neutral">Analysis: ' +
           (s.source === "groq" ? UI.esc(s.model || "Groq") : "local rules (no AI key)") + "</span>";
         flags += '<span class="badge badge--neutral">' +
           UI.esc(s.review_status === "corrected_by_human" ? "Corrected by a human"
             : s.review_status === "human_reviewed" ? "Reviewed by a human"
             : "AI complete — awaiting human review") + "</span>";
-        if (s.confidence != null) {
-          flags += '<span class="badge badge--neutral">Model confidence ' +
-            Math.round(s.confidence * 100) + "% (self-reported, not a probability)</span>";
-        }
-
-        html += '<section class="panel card" style="margin-top:var(--space-5)">' +
-          '<div class="panel__head"><h3 class="panel__title">Status of this analysis</h3>' +
-          '<p class="panel__sub">Rules and AI assist. Only a human reviewer decides.</p></div>' +
-          '<div class="panel__body stack"><div class="chip-row">' + flags + "</div>" +
-          '<p class="muted" style="font-size:var(--fs-fine)">This is an automated assessment, not a ' +
-          "decision and not a verified probability.</p>" +
-          (missing.length ? '<div><strong>What a reviewer would still ask</strong><ul>' +
-            missing.map(function (m) { return "<li>" + UI.esc(m) + "</li>"; }).join("") + "</ul></div>" : "") +
-          "</div></section>";
-
-        return html;
+        return '<div class="chip-row">' + flags + "</div>";
       }
 
-      function moreDetailsPanel(c) {
+      // The default, problem-focused summary: one sentence + a short explanation,
+      // who is affected and why it matters. Everything technical is disclosed below.
+      function summaryPanel(c) {
+        var s = c.latest_screening;
+        if (!s) {
+          return '<section class="panel card"><div class="panel__head">' +
+            '<h2 class="panel__title">What this is about</h2>' +
+            '<p class="panel__sub">No automated summary has been produced yet.</p></div>' +
+            '<div class="panel__body"><p class="muted">The citizen\'s own words are below.</p></div></section>';
+        }
+        var html = "";
+        html += '<div class="summary-hero"><p class="summary-hero__label">In one sentence</p>' +
+          '<p class="summary-hero__text">' + UI.esc(s.one_sentence || s.problem_summary || "—") + "</p></div>";
+        html += '<div class="insight-grid" style="margin-top:var(--space-5)">';
+        html += insightBlock("simple_explanation", "What is happening",
+          s.simple_explanation || s.problem_summary);
+        html += insightBlock("who_is_affected", "Who is affected",
+          s.who_is_affected || s.affected_users);
+        html += insightBlock("why_it_matters", "Why it matters", s.why_it_matters);
+        html += "</div>";
+        html += '<div style="margin-top:var(--space-5)">' + statusChips(s) + "</div>";
+        html += '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">' +
+          "This is an AI-assisted explanation, not a decision and not a verified probability. Only a " +
+          "human reviewer decides what happens to this problem.</p>";
+        return '<section class="panel card"><div class="panel__head">' +
+          '<h2 class="panel__title">What this problem is about</h2>' +
+          '<p class="panel__sub">An AI-assisted, plain-language summary. The citizen\'s original words are ' +
+          "kept exactly as written.</p></div>" +
+          '<div class="panel__body">' + html + "</div></section>";
+      }
+
+      function moreDetailsBody(c) {
         var s = c.latest_screening;
         if (!s) return "";
         var questions = jsonList(s.clarification_questions);
-        return '<details class="disclosure" style="margin-top:var(--space-4)">' +
-          "<summary>More details (technical analysis for reviewers)</summary>" +
-          '<div class="disclosure__body stack">' +
-          (s.problem_summary ? "<div><strong>Neutral summary</strong><p>" + UI.esc(s.problem_summary) + "</p></div>" : "") +
-          (s.technical_requirements ? "<div><strong>Technical requirements</strong><p>" +
-            UI.esc(s.technical_requirements) + "</p></div>" : "") +
-          (s.explanation ? "<div><strong>Reviewer-facing explanation</strong><p>" + UI.esc(s.explanation) + "</p></div>" : "") +
-          (questions.length ? "<div><strong>Suggested clarifying questions</strong><ul>" +
-            questions.map(function (q) { return "<li>" + UI.esc(q) + "</li>"; }).join("") + "</ul></div>" : "") +
-          '<p class="muted" style="font-size:var(--fs-fine)">Analysed ' + UI.fmtDateTime(s.created_at) +
-          (s.model ? " by " + UI.esc(s.model) : " by the local rules engine") + ".</p>" +
-          "</div></details>";
+        var html = "";
+        if (s.problem_summary) html += "<div><strong>Neutral summary</strong><p>" + UI.esc(s.problem_summary) + "</p></div>";
+        if (s.technical_requirements) html += "<div><strong>Technical requirements</strong><p>" + UI.esc(s.technical_requirements) + "</p></div>";
+        if (s.potential_solution) html += "<div><strong>A student team could try</strong><p>" + UI.esc(s.potential_solution) + "</p></div>";
+        var skills = jsonList(s.suggested_skills);
+        if (skills.length) html += "<div><strong>Skills this would need</strong><p>" + UI.esc(skills.join(", ")) + "</p></div>";
+        if (s.explanation) html += "<div><strong>Reviewer-facing explanation</strong><p>" + UI.esc(s.explanation) + "</p></div>";
+        if (questions.length) {
+          html += "<div><strong>Suggested clarifying questions</strong><ul>" +
+            questions.map(function (q) { return "<li>" + UI.esc(q) + "</li>"; }).join("") + "</ul></div>";
+        }
+        html += '<p class="muted" style="font-size:var(--fs-fine)">Analysed ' + UI.fmtDateTime(s.created_at) +
+          (s.model ? " by " + UI.esc(s.model) : " by the local rules engine") + ".</p>";
+        return html;
       }
 
-      function correctionPanel(c) {
-        var map = correctionsByField();
+      function causesBody(c) {
+        var s = c.latest_screening;
+        if (!s) return "";
+        var causes = jsonList(s.possible_causes);
+        if (!causes.length) return '<p class="muted">No specific cause was proposed.</p>';
+        return "<ul>" + causes.map(function (x) { return "<li>" + UI.esc(x) + "</li>"; }).join("") + "</ul>" +
+          '<p class="muted" style="font-size:var(--fs-fine)">Hypotheses to investigate, not established facts.</p>';
+      }
+
+      function impactBody(c) {
+        var s = c.latest_screening;
+        var html = "";
+        if (c.impact_label) {
+          html += "<div><strong>Stated by the citizen</strong><p>" + UI.esc(c.impact_label) + "</p></div>";
+        }
+        html += "<div><strong>Confidence in that figure</strong><p>" +
+          UI.esc(c.impact_is_estimate
+            ? "Citizen estimate — not verified by the platform"
+            : "Citizen says it was measured — not independently verified") + "</p></div>";
+        if (s && s.impact_summary) html += "<div><strong>AI interpretation</strong><p>" + UI.esc(s.impact_summary) + "</p></div>";
+        if (!c.impact_label && (!s || !s.impact_summary)) {
+          html += '<p class="muted">No impact figure was supplied. "I don\'t know" is a valid answer.</p>';
+        }
+        return html;
+      }
+
+      function factsBody(c) {
+        var rows = [
+          ["Who is affected (as reported)", c.affected_users],
+          ["What happens today", c.current_situation],
+          ["Desired outcome", c.desired_outcome],
+          ["Constraints", c.constraints],
+        ].filter(function (r) { return r[1]; });
+        if (!rows.length) return "";
+        return '<dl class="detail-list">' + rows.map(function (r) {
+          return "<div><dt>" + UI.esc(r[0]) + "</dt><dd>" + UI.esc(r[1]) + "</dd></div>";
+        }).join("") + "</dl>";
+      }
+
+      function originalWords(c) {
+        return '<div class="prose">' + paragraphs(c.description) + "</div>" +
+          '<p class="muted" style="font-size:var(--fs-fine)">Stored exactly as submitted. Nothing above ' +
+          "replaces this text.</p>";
+      }
+
+      // ---- evidence, related, reviews, clarifications, corrections ----------
+
+      function evidencePanel(c) {
+        if (!data.attachments.length) return "";
+        return '<section class="panel card"><div class="panel__head">' +
+          '<h2 class="panel__title">Evidence photos</h2>' +
+          '<p class="panel__sub">Private. Visible to the reporter, reviewers and the project team only.</p></div>' +
+          '<div class="panel__body"><div class="evidence-strip">' +
+          data.attachments.map(function (a) {
+            return '<a href="' + UI.esc(a.url) + '" target="_blank" rel="noopener" title="' +
+              UI.esc(a.original_name) + '"><img class="evidence-thumb" src="' + UI.esc(a.url) +
+              '" alt="' + UI.esc("Photo evidence: " + a.original_name) + '" loading="lazy"></a>';
+          }).join("") + "</div>" +
+          '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">Location and camera ' +
+          "metadata was removed on upload. Files are served only to authorised viewers.</p></div></section>";
+      }
+
+      function relatedBody(rel) {
+        if (!rel || !rel.related || !rel.related.length) return "";
+        var items = rel.related.slice(0, 5).map(function (r) {
+          return '<div class="dup-card' + (r.is_duplicate_candidate ? " dup-card--strong" : "") + '">' +
+            '<div class="dup-card__head">' +
+            '<a class="dup-card__title" href="/challenge.html?id=' + r.challenge_id + '">' + UI.esc(r.title) + "</a>" +
+            (r.is_duplicate_candidate ? '<span class="dup-card__score">likely duplicate</span>' : "") + "</div>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(UI.domainLabel(r.category)) +
+            (r.locality ? " · " + UI.esc(r.locality) : "") + " · " + UI.esc(UI.titleCase(r.status)) + "</p>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">' + (r.reasons || []).map(UI.esc).join(" · ") + "</p>" +
+            "</div>";
+        }).join("");
+        return items + '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(rel.note) + "</p>";
+      }
+
+      function reviewsBody() {
+        if (!data.reviews.length) return '<p class="muted">No human decision has been recorded yet.</p>';
+        return data.reviews.map(function (r) {
+          return '<div class="detail-row"><div><strong>' + UI.esc(UI.titleCase(r.decision)) + "</strong>" +
+            (r.overrides_ai ? ' <span class="badge badge--warning">Overrode the AI suggestion</span>' : "") +
+            '<p class="muted" style="font-size:var(--fs-caption)">' + UI.esc(r.reason) + "</p>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(r.reviewer_name || "Reviewer") +
+            " · " + UI.fmtDateTime(r.created_at) + "</p></div></div>";
+        }).join("");
+      }
+
+      function correctionsBody(c) {
         var canCorrect = user && (isReviewer(user) || user.id === c.citizen_id);
         var list = data.corrections.length
           ? '<div class="stack">' + data.corrections.map(function (x) {
@@ -264,95 +334,10 @@
           : (user ? '<p class="muted" style="font-size:var(--fs-fine)">Only the citizen who reported it or ' +
               "a reviewer can correct the summary.</p>" : "");
 
-        return '<section class="panel card"><div class="panel__head">' +
-          '<h2 class="panel__title">Correct the summary</h2>' +
-          '<p class="panel__sub">If the automated summary got something wrong, fix it here — nothing is ' +
-          "silently overwritten.</p></div>" +
-          '<div class="panel__body stack">' + list + form + "</div></section>";
+        return list + form;
       }
 
-      // ---- evidence, related, reviews, clarifications, actions --------------
-
-      function evidencePanel(c) {
-        if (!data.attachments.length) return "";
-        return '<section class="panel card"><div class="panel__head">' +
-          '<h2 class="panel__title">Photos submitted by the citizen</h2>' +
-          '<p class="panel__sub">Private evidence. Visible to the reporter, reviewers and the project team ' +
-          "only.</p></div><div class=\"panel__body\"><div class=\"evidence-strip\">" +
-          data.attachments.map(function (a) {
-            return '<a href="' + UI.esc(a.url) + '" target="_blank" rel="noopener" ' +
-              'title="' + UI.esc(a.original_name) + '">' +
-              '<img class="evidence-thumb" src="' + UI.esc(a.url) + '" alt="' +
-              UI.esc("Photo evidence: " + a.original_name) + '" loading="lazy"></a>';
-          }).join("") + "</div>" +
-          '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">Location and camera ' +
-          "metadata was removed on upload. Files are served only to authorised viewers, never from a " +
-          "public folder.</p></div></section>";
-      }
-
-      function relatedPanel(rel) {
-        if (!rel || !rel.related || !rel.related.length) return "";
-        var items = rel.related.slice(0, 5).map(function (r) {
-          var verdict = r.ai_verdict
-            ? '<span class="badge badge--neutral">AI check: ' + UI.esc(r.ai_verdict) + "</span>" : "";
-          return '<div class="dup-card' + (r.is_duplicate_candidate ? " dup-card--strong" : "") + '">' +
-            '<div class="dup-card__head">' +
-            '<a class="dup-card__title" href="/challenge.html?id=' + r.challenge_id + '">' +
-            UI.esc(r.title) + "</a>" +
-            '<span class="dup-card__score">' + Math.round(r.similarity * 100) + "%</span></div>" +
-            '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(UI.domainLabel(r.category)) +
-            (r.locality ? " · " + UI.esc(r.locality) : "") + " · " + UI.esc(UI.titleCase(r.status)) +
-            (r.is_duplicate_candidate ? ' · <span class="badge badge--warning">Possible duplicate</span>' : "") +
-            "</p>" +
-            '<ul class="dup-card__reasons">' + (r.reasons || []).map(function (x) {
-              return "<li>" + UI.esc(x) + "</li>";
-            }).join("") + "</ul>" + verdict +
-            (r.ai_assessment ? '<p class="muted" style="font-size:var(--fs-fine)">AI note: ' +
-              UI.esc(r.ai_assessment) + "</p>" : "") + "</div>";
-        }).join("");
-        return '<section class="panel card"><div class="panel__head">' +
-          '<h2 class="panel__title">Reports like this one</h2>' +
-          '<p class="panel__sub">' + UI.esc(rel.method) + "</p></div>" +
-          '<div class="panel__body stack">' + items +
-          '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(rel.note) + "</p>" +
-          "</div></section>";
-      }
-
-      function evidenceJourneyLinks(c) {
-        var links = [];
-        links.push('<a class="record-link" href="/challenge.html?id=' + c.id + '">' +
-          '<span class="record-link__label">Problem</span>#' + c.id + " · " + UI.esc(UI.titleCase(c.status)) +
-          "</a>");
-        if (c.project) {
-          links.push('<a class="record-link" href="/project.html?id=' + c.project.id + '">' +
-            '<span class="record-link__label">Project</span>' + UI.esc(c.project.title) + "</a>");
-          if (c.project.university_name) {
-            links.push('<span class="record-link"><span class="record-link__label">University</span>' +
-              UI.esc(c.project.university_name) + "</span>");
-          }
-        }
-        links.push('<a class="record-link" href="/impact.html">' +
-          '<span class="record-link__label">Impact record</span>Verified outcomes</a>');
-        return '<div class="record-links">' + links.join("") + "</div>";
-      }
-
-      function reviewsPanel() {
-        var body = data.reviews.length
-          ? data.reviews.map(function (r) {
-              return '<div class="detail-row"><div><strong>' + UI.esc(UI.titleCase(r.decision)) + "</strong>" +
-                (r.overrides_ai ? ' <span class="badge badge--warning">Overrode the AI suggestion</span>' : "") +
-                '<p class="muted" style="font-size:var(--fs-caption)">' + UI.esc(r.reason) + "</p>" +
-                '<p class="muted" style="font-size:var(--fs-fine)">' +
-                UI.esc(r.reviewer_name || "Reviewer") + " · " + UI.fmtDateTime(r.created_at) + "</p></div></div>";
-            }).join("")
-          : '<p class="muted">No human decision has been recorded yet.</p>';
-        return '<section class="panel card"><div class="panel__head">' +
-          '<h2 class="panel__title">Human decisions</h2>' +
-          '<p class="panel__sub">The authoritative record. An AI suggestion never decides.</p></div>' +
-          '<div class="panel__body stack">' + body + "</div></section>";
-      }
-
-      function clarificationsPanel(c, isOwner, reviewer) {
+      function clarificationsBody(c, isOwner, reviewer) {
         var list = data.clarifications.length
           ? data.clarifications.map(function (q) {
               return '<div class="detail-row"><div>' +
@@ -380,9 +365,92 @@
             '<button class="btn btn--secondary btn--sm" type="submit">Send question</button></form>'
           : "";
 
-        return '<section class="panel card"><div class="panel__head">' +
-          '<h2 class="panel__title">Clarifications</h2></div>' +
-          '<div class="panel__body stack">' + list + ask + "</div></section>";
+        return list + ask;
+      }
+
+      function solutionsBody(res) {
+        if (!res) return "";
+        var matches = res.matches || [];
+        var header = '<p class="muted" style="font-size:var(--fs-fine)">Searched ' +
+          UI.esc((res.sources_searched || []).join(", ")) + " · analysed by " + UI.esc(res.analysed_by) + "</p>";
+        if (!matches.length) {
+          return header + '<p class="muted">No similar prior work was found in the internal repository.</p>' +
+            notes(res);
+        }
+        var body = matches.map(function (m) {
+          var rec = m.recommendation === "reuse" ? "badge--success"
+            : (m.recommendation === "adapt" ? "badge--warning" : "badge--neutral");
+          return '<div class="detail-row"><div><div class="chip-row">' +
+            '<span class="badge ' + rec + '">' + UI.esc(UI.titleCase(m.recommendation)) + "</span>" +
+            UI.demoTag(m.is_demo) +
+            '<span class="badge badge--neutral">' + Math.round(m.similarity * 100) + "% text similarity</span>" +
+            "</div>" +
+            '<p style="margin-top:var(--space-3)"><strong>' + UI.esc(m.title) + "</strong></p>" +
+            '<p style="font-size:var(--fs-caption)"><em>' + UI.esc(m.relevance_explanation) + "</em></p>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">Source: ' +
+            UI.esc(m.source_label || "internal repository") + "</p>" +
+            '<details class="disclosure" style="margin-top:var(--space-2)"><summary>More about this match' +
+            "</summary><div class=\"disclosure__body stack\">" +
+            "<p>" + UI.esc(String(m.description).slice(0, 600)) + "</p>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">Tech: ' + UI.esc(m.technologies || "—") +
+            " · Licence: " + UI.esc(m.license_info || "not recorded") +
+            " · Limitations: " + UI.esc(m.limitations || "—") + "</p>" +
+            (m.source_url ? '<a class="btn btn--ghost btn--sm" href="' + UI.esc(m.source_url) +
+              '" target="_blank" rel="noopener">Open source (' + UI.esc(m.source_label || "link") + ")</a>" : "") +
+            "</div></details>" +
+            "</div></div>";
+        }).join("");
+        return header +
+          '<p class="muted" style="font-size:var(--fs-fine)"><strong>Similarity is a search signal, not ' +
+          "proof.</strong> A mentor must verify suitability, licensing and safety before anything is reused." +
+          "</p>" + body + notes(res);
+      }
+
+      function notes(res) {
+        if (!res || !res.limitations || !res.limitations.length) return "";
+        return '<p class="muted" style="font-size:var(--fs-fine)">' + res.limitations.map(UI.esc).join(" ") + "</p>";
+      }
+
+      function projectBody(c) {
+        var p = c.project;
+        if (!p) return "";
+        return '<div class="detail-row"><div><strong>' + UI.esc(p.title) + "</strong>" +
+          '<p class="muted" style="font-size:var(--fs-caption)">' + UI.esc(p.problem_statement || "") + "</p>" +
+          '<p class="muted" style="font-size:var(--fs-fine)">' +
+          (p.mentor_name ? "Mentor: " + UI.esc(p.mentor_name) + " · " : "") +
+          (p.university_name ? UI.esc(p.university_name) + " · " : "") +
+          UI.esc(UI.titleCase(p.status)) + "</p>" +
+          '<a class="btn btn--secondary btn--sm" href="/project.html?id=' + p.id +
+          '" style="margin-top:var(--space-2)">Open the project workspace</a></div></div>';
+      }
+
+      // ---- actions ----------------------------------------------------------
+
+      function nextAction(c, isOwner, reviewer) {
+        if (c.project) {
+          return { text: "This problem has a student project underway.", href: "/project.html?id=" + c.project.id,
+                   label: "Open the project" };
+        }
+        if (reviewer && OPEN.indexOf(c.status) !== -1) {
+          return { text: "This problem is waiting for a human review decision.", anchor: "review-form",
+                   label: "Review this problem" };
+        }
+        if (reviewer && c.status === "approved") {
+          return { text: "Approved for student innovation. An authorised coordinator can scope a project.",
+                   label: "Scope a student project", scope: true };
+        }
+        if (isOwner && c.status === "needs_clarification") {
+          return { text: "A reviewer has asked you a question below.", anchor: "ask-answer",
+                   label: "Answer the question" };
+        }
+        if (BLOCKED.indexOf(c.status) !== -1) {
+          return { text: "This problem was recorded as " + UI.titleCase(c.status) +
+                   " and cannot enter the student pipeline." };
+        }
+        if (OPEN.indexOf(c.status) !== -1) {
+          return { text: "Awaiting a reviewer's decision. You will be notified when it changes." };
+        }
+        return { text: "No action is needed from you right now." };
       }
 
       function actionsPanel(c, isOwner, reviewer) {
@@ -410,14 +478,6 @@
           actions.push('<button class="btn btn--ghost btn--block" id="rescreen-btn">Re-run the automated ' +
             "summary</button>");
         }
-        if (isOwner && c.status === "needs_clarification") {
-          actions.push('<p class="muted" style="font-size:var(--fs-caption)">A reviewer has asked for more ' +
-            "detail below.</p>");
-        }
-        if (c.project) {
-          actions.push('<a class="btn btn--primary btn--block" href="/project.html?id=' + c.project.id +
-            '">Open the project workspace</a>');
-        }
         if (!actions.length) {
           actions.push('<p class="muted" style="font-size:var(--fs-caption)">No actions are available for ' +
             "your role on this problem.</p>");
@@ -428,51 +488,15 @@
           '<div class="panel__body stack">' + actions.join("") + "</div></section>";
       }
 
-      function solutionsPanel(res) {
-        var matches = (res && res.matches) || [];
-        var header = '<section class="panel card"><div class="panel__head">' +
-          '<h2 class="panel__title">Prior work considered</h2>' +
-          '<p class="panel__sub">Searched ' + UI.esc((res.sources_searched || []).join(", ")) +
-          " · analysed by " + UI.esc(res.analysed_by) + "</p></div><div class=\"panel__body stack\">";
-        if (!matches.length) {
-          return header + '<p class="muted">No similar prior work was found in the internal repository.</p>' +
-            notes(res) + "</div></section>";
-        }
-        var body = matches.map(function (m) {
-          var rec = m.recommendation === "reuse" ? "badge--success"
-            : (m.recommendation === "adapt" ? "badge--warning" : "badge--neutral");
-          return '<div class="detail-row"><div><div class="chip-row">' +
-            '<span class="badge ' + rec + '">' + UI.esc(UI.titleCase(m.recommendation)) + "</span>" +
-            UI.demoTag(m.is_demo) + '<span class="badge badge--neutral">' + Math.round(m.similarity * 100) +
-            "% similar</span>" +
-            '<span class="badge badge--neutral">' + UI.esc(String(m.review_status).replace(/_/g, " ")) +
-            "</span></div>" +
-            '<p style="margin-top:var(--space-3)"><strong>' + UI.esc(m.title) + "</strong></p>" +
-            '<p class="muted" style="font-size:var(--fs-caption)">' +
-            UI.esc(String(m.description).slice(0, 220)) + "…</p>" +
-            '<p style="font-size:var(--fs-caption)"><em>' + UI.esc(m.relevance_explanation) + "</em></p>" +
-            '<p class="muted" style="font-size:var(--fs-fine)">Tech: ' + UI.esc(m.technologies || "—") +
-            " · Licence: " + UI.esc(m.license_info || "not recorded") +
-            " · Limitations: " + UI.esc(m.limitations || "—") + "</p>" +
-            (m.source_url ? '<a class="btn btn--ghost btn--sm" href="' + UI.esc(m.source_url) +
-              '" target="_blank" rel="noopener">Open source (' + UI.esc(m.source_label || "link") + ")</a>" : "") +
-            "</div></div>";
-        }).join("");
-        return header + body + notes(res) + "</div></section>";
-      }
-
-      function notes(res) {
-        if (!res || !res.limitations || !res.limitations.length) return "";
-        return '<p class="muted" style="font-size:var(--fs-fine)">' + res.limitations.map(UI.esc).join(" ") +
-          "</p>";
-      }
-
-      // ---- render & wire ----------------------------------------------------
+      // ---- render -----------------------------------------------------------
 
       function render() {
         var c = challenge;
         var isOwner = user && user.id === c.citizen_id;
         var reviewer = isReviewer(user);
+
+        var relatedCount = (data.related && data.related.related && data.related.related.length) || 1;
+        var next = nextAction(c, isOwner, reviewer);
 
         var html = "";
         html += '<div class="page-head">' +
@@ -480,44 +504,60 @@
           '<span class="chip" style="pointer-events:none">' + UI.esc(UI.domainLabel(c.category)) + "</span>" +
           (c.difficulty ? '<span class="chip" style="pointer-events:none">' +
             UI.esc(UI.titleCase(c.difficulty)) + "</span>" : "") +
-          (c.group_key ? '<span class="chip" style="pointer-events:none">Grouped with similar reports</span>' : "") +
+          (c.group_key ? '<span class="chip" style="pointer-events:none">🔗 ' + relatedCount +
+            " related report" + (relatedCount === 1 ? "" : "s") + "</span>" : "") +
           "</div>" +
           "<h1>" + UI.esc(c.title) + "</h1>" +
           '<p class="lead">' +
           ([c.locality, c.city].filter(Boolean).length
             ? "📍 " + UI.esc([c.locality, c.city].filter(Boolean).join(", ")) + " · "
             : (c.location ? "📍 " + UI.esc(c.location) + " · " : "")) +
-          "Reported by " + UI.esc(c.citizen_name || "a citizen") + " on " + UI.fmtDate(c.created_at) +
-          "</p>" + evidenceJourneyLinks(c) + "</div>";
+          "Reported " + UI.fmtDate(c.created_at) + "</p>" +
+          "</div>";
+
+        // Next-step callout — the one thing to do here.
+        html += '<div class="insight insight--info" style="margin-bottom:var(--space-6)">' +
+          '<p class="insight__label">Next step</p><div class="insight__value">' + UI.esc(next.text) +
+          (next.label
+            ? ' <button class="btn btn--primary btn--sm" data-next="' +
+              UI.esc(next.anchor || "") + '" style="margin-left:var(--space-3)">' + UI.esc(next.label) + "</button>"
+            : "") +
+          "</div></div>";
 
         html += '<div class="split">';
 
-        // left
+        // left column
         html += '<div class="stack">';
         html += summaryPanel(c);
-        html += moreDetailsPanel(c);
+        html += evidencePanel(c);
+
+        // Everything secondary is collapsed.
+        var detailsBody = "";
+        detailsBody += disclosure("View the original description", originalWords(c), true);
+        detailsBody += disclosure("More AI details", moreDetailsBody(c));
+        detailsBody += disclosure("Possible causes", causesBody(c));
+        detailsBody += disclosure("Estimated impact", impactBody(c));
+        detailsBody += disclosure("More about what the citizen reported", factsBody(c));
+        detailsBody += disclosure("Related reports", relatedBody(data.related));
+        detailsBody += disclosure("Existing solution recommendations", solutionsBody(data.solutions));
+        detailsBody += disclosure("Human review history", reviewsBody());
+        detailsBody += disclosure("Corrections and clarifications",
+          correctionsBody(c) + clarificationsBody(c, isOwner, reviewer));
+        if (c.project) detailsBody += disclosure("Project history and outcome evidence", projectBody(c));
 
         html += '<section class="panel card"><div class="panel__head">' +
-          '<h2 class="panel__title">The citizen\'s own words</h2>' +
-          '<p class="panel__sub">Stored exactly as submitted. Nothing above replaces this text.</p></div>' +
-          '<div class="panel__body prose">' + paragraphs(c.description) + "</div></section>";
-
-        html += factsPanel(c);
-        html += evidencePanel(c);
-        html += correctionPanel(c);
-        html += reviewsPanel();
-        html += clarificationsPanel(c, isOwner, reviewer);
+          '<h2 class="panel__title">Details</h2>' +
+          '<p class="panel__sub">Open only what you need — the essentials are above.</p></div>' +
+          '<div class="panel__body">' + detailsBody + "</div></section>";
         html += "</div>";
 
-        // right
+        // right column
         html += '<div class="stack">';
         html += '<section class="panel card"><div class="panel__head">' +
           '<h2 class="panel__title">The journey</h2>' +
-          '<p class="panel__sub">One record, followed from report to outcome.</p></div>' +
+          '<p class="panel__sub">Only stages that have actually been reached are marked.</p></div>' +
           '<div class="panel__body">' + UI.journey(journeySteps(c)) + "</div></section>";
         html += actionsPanel(c, isOwner, reviewer);
-        html += relatedPanel(data.related);
-        if (data.solutions) html += solutionsPanel(data.solutions);
         html += "</div>";
 
         html += "</div>";
@@ -532,25 +572,21 @@
         }).join("");
       }
 
-      function factsPanel(c) {
-        var rows = [
-          ["Impact stated by the citizen", c.impact_label || "No figure supplied"],
-          ["Confidence in that figure", c.impact_is_estimate
-            ? "Citizen estimate — not verified by the platform"
-            : "Citizen says it was measured — not independently verified"],
-          ["Who is affected (as reported)", c.affected_users],
-          ["What happens today", c.current_situation],
-          ["Desired outcome", c.desired_outcome],
-          ["Constraints", c.constraints],
-        ].filter(function (r) { return r[1]; });
-        return '<section class="panel card"><div class="panel__head"><h2 class="panel__title">' +
-          "What the citizen reported</h2></div><div class=\"panel__body\"><dl class=\"detail-list\">" +
-          rows.map(function (r) {
-            return "<div><dt>" + UI.esc(r[0]) + "</dt><dd>" + UI.esc(r[1]) + "</dd></div>";
-          }).join("") + "</dl></div></section>";
-      }
-
       function wire(c, isOwner, reviewer) {
+        UI.qsa("[data-next]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var target = btn.getAttribute("data-next");
+            if (target) {
+              var el = UI.qs("#" + target);
+              if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+            }
+            // Open the review disclosure and focus the decision form.
+            UI.qsa("details.disclosure").forEach(function (d) { d.open = true; });
+            var rf = UI.qs("#review-form");
+            if (rf) { rf.scrollIntoView({ behavior: "smooth", block: "center" }); }
+          });
+        });
+
         var rf = UI.qs("#review-form");
         if (rf) rf.addEventListener("submit", function (e) {
           e.preventDefault();

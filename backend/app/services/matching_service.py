@@ -282,3 +282,23 @@ def match_students(db: Session, project: Project, limit: int = 12) -> dict:
 
     return result
 
+
+def explain_student_match(project: Project, profile: StudentProfile, user: User) -> dict:
+    """Score ONE student against ONE project, with a written explanation.
+
+    Used when a student browses "Projects you can join" and when their application
+    is shown to staff, so the same transparent number and reason are seen by both
+    sides. Nothing here decides anything — it is an input for a human decision.
+    """
+    required_skills = parse_keywords(project.required_skills)
+    project_tokens = tokenize_free_text(
+        " ".join(filter(None, [project.title, project.problem_statement,
+                               project.objectives or "", project.required_skills or ""])))
+    scored = score_student(project, profile, user, required_skills, project_tokens)
+    return {
+        "score": scored["score"],
+        "reason": scored["reason"],
+        "matched": scored["matched"],
+        "unmatched": scored["unmatched"],
+        "required_skills": required_skills,
+    }

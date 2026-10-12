@@ -42,7 +42,7 @@ from ..services import analytics_service
 
 router = APIRouter(prefix="/api/competitions", tags=["competitions"])
 
-STAFF = {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}
+STAFF = {Role.ADMIN, *Role.UNIVERSITY_ROLES}
 
 
 def _criteria_json(payload) -> str:

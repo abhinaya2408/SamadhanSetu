@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 150" role="img" aria-label="A citizen takes a photo of a local problem" width="220" height="150">
+  <rect width="220" height="150" rx="16" fill="#fdf6f0"/>
+  <!-- buildings -->
+  <rect x="14" y="30" width="52" height="72" rx="6" fill="#f0d8cd"/>
+  <rect x="74" y="46" width="42" height="56" rx="6" fill="#e6cfc6"/>
+  <g fill="#ffffff" opacity="0.85">
+    <rect x="22" y="40" width="14" height="12" rx="3"/><rect x="44" y="40" width="14" height="12" rx="3"/>
+    <rect x="22" y="60" width="14" height="12" rx="3"/><rect x="44" y="60" width="14" height="12" rx="3"/>
+    <rect x="82" y="56" width="12" height="11" rx="3"/><rect x="100" y="56" width="12" height="11" rx="3"/>
+  </g>
+  <!-- road -->
+  <rect x="0" y="102" width="220" height="48" fill="#e9e4de"/>
+  <ellipse cx="150" cy="124" rx="34" ry="11" fill="#b9b1a7"/>
+  <ellipse cx="150" cy="123" rx="22" ry="7" fill="#8fa7b8" opacity="0.85"/>
+  <!-- citizen -->
+  <g transform="translate(30,58)">
+    <ellipse cx="22" cy="66" rx="20" ry="6" fill="#000" opacity="0.07"/>
+    <rect x="12" y="40" width="10" height="26" rx="5" fill="#3f4b66"/>
+    <rect x="24" y="40" width="10" height="26" rx="5" fill="#35405a"/>
+    <path d="M6 12 q16 -10 32 0 l6 32 q-22 8 -44 0 Z" fill="#e4573d"/>
+    <path d="M36 14 l8 30 q-7 3 -14 4 Z" fill="#c8462f"/>
+    <path d="M38 20 q18 4 24 -8" stroke="#c68642" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <rect x="60" y="2" width="18" height="28" rx="5" fill="#1d1d1f"/>
+    <rect x="63" y="6" width="12" height="18" rx="3" fill="#9ec1e0"/>
+    <circle cx="22" cy="2" r="16" fill="#c68642"/>
+    <path d="M6 0 q4 -18 24 -16 q9 1 9 13 q-5 -7 -16 -6 q-12 1 -17 9 Z" fill="#241c17"/>
+  </g>
+  <!-- flash cue -->
+  <g stroke="#f0b429" stroke-width="3" stroke-linecap="round">
+    <path d="M118 44 l10 -8"/><path d="M124 58 l12 3"/><path d="M112 34 l3 -11"/>
+  </g>
+</svg>

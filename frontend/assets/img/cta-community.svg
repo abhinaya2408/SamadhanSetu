@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360" role="img" aria-label="Citizens, students and a mentor standing together around a community map" width="520" height="360">
+  <defs>
+    <linearGradient id="ctaSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe9d6"/>
+      <stop offset="1" stop-color="#ffe0c7"/>
+    </linearGradient>
+  </defs>
+  <rect width="520" height="360" rx="24" fill="url(#ctaSky)"/>
+  <circle cx="418" cy="86" r="52" fill="#ffc97e" opacity="0.7"/>
+  <!-- skyline -->
+  <g opacity="0.9">
+    <rect x="24" y="150" width="96" height="150" rx="8" fill="#f4c9b2"/>
+    <rect x="132" y="180" width="80" height="120" rx="8" fill="#eabfa8"/>
+    <rect x="326" y="164" width="86" height="136" rx="8" fill="#f4c9b2"/>
+    <rect x="424" y="190" width="72" height="110" rx="8" fill="#eabfa8"/>
+    <g fill="#ffffff" opacity="0.8">
+      <rect x="40" y="168" width="22" height="20" rx="4"/><rect x="74" y="168" width="22" height="20" rx="4"/>
+      <rect x="40" y="204" width="22" height="20" rx="4"/><rect x="74" y="204" width="22" height="20" rx="4"/>
+      <rect x="342" y="184" width="22" height="20" rx="4"/><rect x="372" y="184" width="22" height="20" rx="4"/>
+      <rect x="342" y="220" width="22" height="20" rx="4"/><rect x="372" y="220" width="22" height="20" rx="4"/>
+    </g>
+  </g>
+  <!-- ground -->
+  <rect x="0" y="292" width="520" height="68" fill="#f0d3b8"/>
+  <!-- floating map card -->
+  <g transform="translate(186,40)">
+    <rect x="0" y="0" width="150" height="104" rx="14" fill="#ffffff" stroke="#e6d3c1"/>
+    <g stroke="#f0e4d8" stroke-width="6" stroke-linecap="round">
+      <path d="M14 34 H136"/><path d="M14 70 H136"/><path d="M52 18 V90"/><path d="M100 18 V90"/>
+    </g>
+    <circle cx="61" cy="52" r="20" fill="#e4573d" opacity="0.18"/>
+    <path d="M61 36 a10 10 0 0 1 10 10 c0 7 -10 19 -10 19 s-10 -12 -10 -19 a10 10 0 0 1 10 -10 Z" fill="#e4573d"/>
+    <circle cx="61" cy="46" r="3.6" fill="#fff"/>
+    <path d="M100 60 a9 9 0 0 1 9 9 c0 6 -9 17 -9 17 s-9 -11 -9 -17 a9 9 0 0 1 9 -9 Z" fill="#2b6cb0"/>
+    <circle cx="100" cy="69" r="3.2" fill="#fff"/>
+  </g>
+  <!-- three people -->
+  <!-- citizen -->
+  <g transform="translate(120,196)">
+    <ellipse cx="34" cy="106" rx="34" ry="9" fill="#000" opacity="0.08"/>
+    <rect x="22" y="72" width="12" height="34" rx="6" fill="#5a4632"/>
+    <rect x="38" y="72" width="12" height="34" rx="6" fill="#4a3928"/>
+    <path d="M8 20 q26 -14 52 0 l10 58 q-36 14 -72 0 Z" fill="#e4573d"/>
+    <path d="M60 24 l10 54 q-10 4 -18 5 l-8 -58 Z" fill="#c8462f"/>
+    <circle cx="34" cy="2" r="20" fill="#c68642"/>
+    <path d="M14 0 q5 -22 34 -18 q11 2 11 15 q-7 -8 -22 -7 q-16 1 -23 10 Z" fill="#241c17"/>
+  </g>
+  <!-- student -->
+  <g transform="translate(216,188)">
+    <ellipse cx="34" cy="112" rx="34" ry="9" fill="#000" opacity="0.08"/>
+    <rect x="22" y="76" width="12" height="36" rx="6" fill="#2f3a52"/>
+    <rect x="38" y="76" width="12" height="36" rx="6" fill="#263147"/>
+    <path d="M8 22 q26 -14 52 0 l10 58 q-36 14 -72 0 Z" fill="#7fb069"/>
+    <circle cx="34" cy="2" r="20" fill="#e0ac69"/>
+    <path d="M14 0 q5 -22 34 -18 q11 2 11 15 q-7 -8 -22 -7 q-16 1 -23 10 Z" fill="#2b2119"/>
+  </g>
+  <!-- mentor -->
+  <g transform="translate(316,196)">
+    <ellipse cx="34" cy="106" rx="34" ry="9" fill="#000" opacity="0.08"/>
+    <rect x="22" y="72" width="12" height="34" rx="6" fill="#3f4b66"/>
+    <rect x="38" y="72" width="12" height="34" rx="6" fill="#35405a"/>
+    <path d="M8 20 q26 -14 52 0 l10 58 q-36 14 -72 0 Z" fill="#f7f6f4"/>
+    <path d="M34 22 l8 56 q-10 4 -18 4 l-8 -58 Z" fill="#e4573d" opacity="0.9"/>
+    <circle cx="34" cy="2" r="20" fill="#e0ac69"/>
+    <path d="M14 0 q5 -22 34 -18 q11 2 11 15 q-7 -8 -22 -7 q-16 1 -23 10 Z" fill="#4a4a4a"/>
+    <g stroke="#1d1d1f" stroke-width="2.4" fill="none">
+      <circle cx="27" cy="2" r="6"/><circle cx="42" cy="2" r="6"/><path d="M33 2 h3"/>
+    </g>
+  </g>
+</svg>

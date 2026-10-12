@@ -19,9 +19,11 @@ from ..core.permissions import (
     can_access_project,
     require_project_access,
     require_project_staff,
+    require_roles,
 )
 from ..dependencies import CurrentUser, CsrfDep, DbDep, OptionalUser, PageDep, paginated
 from ..models import (
+    ApplicationStatus,
     Challenge,
     ChallengeStatus,
     ImpactReport,
@@ -29,8 +31,10 @@ from ..models import (
     Milestone,
     MilestoneStatus,
     Project,
+    ProjectApplication,
     ProjectEvidence,
     ProjectMember,
+    ProjectStatus,
     ResponsibilityForm,
     Role,
     Task,
@@ -41,6 +45,9 @@ from ..models import (
     utcnow,
 )
 from ..schemas import (
+    ApplicationDecision,
+    ApplicationIn,
+    ApplicationOut,
     EvidenceIn,
     EvidenceOut,
     ImpactReportIn,
@@ -49,6 +56,7 @@ from ..schemas import (
     MemberPatch,
     MentorReviewIn,
     MentorReviewOut,
+    MemberRespond,
     MessageOut,
     MilestoneIn,
     MilestoneOut,
@@ -68,7 +76,7 @@ from ..services import analytics_service, matching_service, notification_service
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
-STAFF = {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}
+STAFF = {Role.ADMIN, *Role.UNIVERSITY_ROLES}
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +146,7 @@ def create_project(payload: ProjectCreate, db: DbDep, user: CurrentUser, csrf: C
         university_id = user.faculty_profile.university_id
     if payload.mentor_id:
         mentor = db.get(User, payload.mentor_id)
-        if not mentor or mentor.role not in {Role.FACULTY, Role.UNIVERSITY_ADMIN, Role.ADMIN}:
+        if not mentor or mentor.role not in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
             raise HTTPException(status_code=400, detail="Selected mentor is not a faculty member.")
 
     p = Project(
@@ -209,6 +217,333 @@ def list_projects(db: DbDep, page: PageDep, user: OptionalUser = None,
     return paginated(items, total, page.page, page.page_size)
 
 
+# ---------------------------------------------------------------------------
+# Recruitment: projects a student can join, and the application workflow
+# ---------------------------------------------------------------------------
+
+def _open_positions(db, p: Project) -> int:
+    """Places left, counting both confirmed members and outstanding invitations.
+
+    Checked on the backend so a full team cannot be over-filled by a stale page.
+    """
+    taken = sum(1 for m in p.members if m.status in {"active", "invited"})
+    return max(0, (p.expected_team_size or 4) - taken)
+
+
+def _team_full(p: Project, excluding_member_id: int | None = None) -> bool:
+    """True when there is no room left, ignoring the member being activated.
+
+    ``_open_positions`` already counts a pending invitation, so activating that same
+    member must not look like an overflow.
+    """
+    taken = sum(1 for m in p.members
+                if m.status in {"active", "invited"} and m.id != excluding_member_id)
+    return taken >= (p.expected_team_size or 4)
+
+
+def _maybe_activate_project(p: Project) -> None:
+    """A project opened for recruitment becomes live once a member has accepted.
+
+    The activation rule is deliberately simple and explicit: at least one accepted
+    team member. Nothing activates before a student actually accepts.
+    """
+    active = sum(1 for m in p.members if m.status == "active")
+    if p.status == ProjectStatus.RECRUITING and active >= 1:
+        p.status = ProjectStatus.ACTIVE
+
+
+def _project_staff_ids(db, p: Project) -> list[int]:
+    """The people who should hear about activity on a project."""
+    ids = set()
+    if p.mentor_id:
+        ids.add(p.mentor_id)
+    if p.created_by_id:
+        ids.add(p.created_by_id)
+    return [i for i in ids if i]
+
+
+def _application_out(db, a: ProjectApplication) -> ApplicationOut:
+    out = ApplicationOut.model_validate(a)
+    if a.student:
+        out.student_name = a.student.full_name
+        prof = a.student.student_profile
+        if prof:
+            out.student_department = prof.department.name if prof.department else None
+            out.student_skills = prof.skills
+            out.student_experience = prof.experience_level
+    if a.project:
+        out.project_title = a.project.title
+    if a.decided_by:
+        out.decided_by_name = a.decided_by.full_name
+    member = db.query(ProjectMember).filter(
+        ProjectMember.project_id == a.project_id, ProjectMember.user_id == a.student_id).first()
+    out.member_id = member.id if member else None
+    return out
+
+
+@router.get("/open")
+def open_projects(db: DbDep, user: CurrentUser, limit: int = Query(default=24, ge=1, le=60)):
+    """Projects currently open for recruitment, with a per-student match explanation.
+
+    This is the discovery surface: once a project is set to ``recruiting`` it appears
+    here, and each card explains how the signed-in student's skills line up with what
+    the project needs. The match is a transparent signal, never a decision.
+    """
+    require_roles(user, Role.STUDENT)
+    rows = (db.query(Project)
+            .filter(Project.status == ProjectStatus.RECRUITING)
+            .order_by(Project.created_at.desc())
+            .limit(limit).all())
+
+    items = []
+    profile = user.student_profile
+    for p in rows:
+        if profile:
+            match = matching_service.explain_student_match(p, profile, user)
+        else:
+            match = {"score": None,
+                     "reason": "Add your skills to your profile to see a match.",
+                     "matched": [], "unmatched": []}
+        app = db.query(ProjectApplication).filter(
+            ProjectApplication.project_id == p.id,
+            ProjectApplication.student_id == user.id).first()
+        items.append({
+            "id": p.id,
+            "title": p.title,
+            "problem_statement": p.problem_statement,
+            "objectives": p.objectives,
+            "deliverables": p.deliverables,
+            "required_skills": p.required_skills,
+            "difficulty": p.difficulty,
+            "expected_team_size": p.expected_team_size,
+            "deadline": p.deadline.isoformat() if p.deadline else None,
+            "university_name": p.university.name if p.university else None,
+            "mentor_name": p.mentor.full_name if p.mentor else None,
+            "open_positions": _open_positions(db, p),
+            "match_score": match["score"],
+            "match_reason": match["reason"],
+            "matched_skills": match["matched"],
+            "missing_skills": match["unmatched"],
+            "my_application_status": app.status if app else None,
+        })
+    return {
+        "items": items,
+        "total": len(items),
+        "note": ("Only projects a university has opened for recruitment appear here. "
+                 "The match explanation is a transparent search signal - the mentor decides."),
+    }
+
+
+@router.get("/my-applications")
+def my_applications(db: DbDep, user: CurrentUser):
+    """A student's own applications and outstanding invitations."""
+    require_roles(user, Role.STUDENT)
+    apps = (db.query(ProjectApplication)
+            .filter(ProjectApplication.student_id == user.id)
+            .order_by(ProjectApplication.created_at.desc()).all())
+    invites = (db.query(ProjectMember)
+               .filter(ProjectMember.user_id == user.id, ProjectMember.status == "invited").all())
+    invitation_items = []
+    for m in invites:
+        invitation_items.append({
+            "member_id": m.id,
+            "project_id": m.project_id,
+            "project_title": m.project.title if m.project else None,
+            "team_role": m.team_role,
+            "match_score": m.match_score,
+            "match_reason": m.match_reason,
+            "deadline": m.project.deadline.isoformat() if m.project and m.project.deadline else None,
+            "mentor_name": m.project.mentor.full_name if m.project and m.project.mentor else None,
+        })
+    return {
+        "applications": [_application_out(db, a).model_dump() for a in apps],
+        "invitations": invitation_items,
+    }
+
+
+@router.post("/{project_id}/apply", response_model=ApplicationOut, status_code=status.HTTP_201_CREATED)
+def apply_to_project(project_id: int, payload: ApplicationIn, db: DbDep, user: CurrentUser, csrf: CsrfDep):
+    """A student expresses interest in an open project. Duplicates are impossible."""
+    require_roles(user, Role.STUDENT)
+    p = _project_or_404(db, project_id)
+    if p.status != ProjectStatus.RECRUITING:
+        raise HTTPException(status_code=409, detail="This project is not open for applications.")
+    if not user.student_profile:
+        raise HTTPException(status_code=400, detail="Complete your student profile before applying.")
+    if db.query(ProjectMember).filter(
+            ProjectMember.project_id == p.id, ProjectMember.user_id == user.id).first():
+        raise HTTPException(status_code=409, detail="You are already on this team.")
+    if db.query(ProjectApplication).filter(
+            ProjectApplication.project_id == p.id, ProjectApplication.student_id == user.id).first():
+        raise HTTPException(status_code=409, detail="You have already applied to this project.")
+    if _open_positions(db, p) <= 0:
+        raise HTTPException(status_code=409, detail="This team is already full.")
+
+    match = matching_service.explain_student_match(p, user.student_profile, user)
+    app = ProjectApplication(
+        project_id=p.id, student_id=user.id, message=payload.message,
+        status=ApplicationStatus.APPLIED,
+        match_score=match["score"], match_reason=match["reason"],
+    )
+    db.add(app)
+    db.flush()
+    for staff_id in _project_staff_ids(db, p):
+        notification_service.notify(
+            db, staff_id, f"New application for '{p.title}'",
+            f"{user.full_name} applied to join. {match['reason']}",
+            kind="review", link=f"/project.html?id={p.id}&tab=applications")
+    audit.log(db, user, "application.submitted", target_type="project", target_id=p.id,
+              metadata={"application_id": app.id})
+    db.commit()
+    db.refresh(app)
+    return _application_out(db, app)
+
+
+@router.get("/{project_id}/applications", response_model=list[ApplicationOut])
+def list_applications(project_id: int, db: DbDep, user: CurrentUser,
+                      app_status: str | None = Query(default=None, alias="status")):
+    """Authorised staff see every application for a project, with match explanations."""
+    p = _project_or_404(db, project_id)
+    require_project_staff(db, user, p)
+    q = db.query(ProjectApplication).filter(ProjectApplication.project_id == p.id)
+    if app_status:
+        q = q.filter(ProjectApplication.status == app_status)
+    rows = q.order_by(ProjectApplication.match_score.desc().nullslast(),
+                      ProjectApplication.created_at.desc()).all()
+    return [_application_out(db, a) for a in rows]
+
+
+@router.patch("/{project_id}/applications/{application_id}", response_model=ApplicationOut)
+def decide_application(project_id: int, application_id: int, payload: ApplicationDecision,
+                       db: DbDep, user: CurrentUser, csrf: CsrfDep):
+    """Staff decision on an application: review, invite, accept or decline.
+
+    Inviting or accepting creates the team record (and its responsibility form).
+    Capacity is checked here, transactionally, so a team can never be over-filled.
+    """
+    p = _project_or_404(db, project_id)
+    require_project_staff(db, user, p)
+    a = db.get(ProjectApplication, application_id)
+    if not a or a.project_id != p.id:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    if a.status in {ApplicationStatus.WITHDRAWN}:
+        raise HTTPException(status_code=409, detail="This application was withdrawn.")
+
+    new_status = payload.status
+    member = db.query(ProjectMember).filter(
+        ProjectMember.project_id == p.id, ProjectMember.user_id == a.student_id).first()
+
+    if new_status in {ApplicationStatus.INVITED, ApplicationStatus.ACCEPTED}:
+        if not (member and member.status in {"active", "invited"}):
+            if _open_positions(db, p) <= 0:
+                raise HTTPException(status_code=409, detail="This team is already full.")
+            team_role = (payload.team_role or "member").strip() or "member"
+            if not member:
+                member = ProjectMember(
+                    project_id=p.id, user_id=a.student_id, team_role=team_role,
+                    status="invited", match_score=a.match_score, match_reason=a.match_reason,
+                )
+                db.add(member)
+                db.flush()
+            else:
+                member.team_role = team_role
+                member.status = "invited"
+            if not member.responsibility_form:
+                db.add(ResponsibilityForm(
+                    project_id=p.id, member_id=member.id, role=team_role,
+                    responsibilities=f"As {team_role} on '{p.title}', contribute to the agreed deliverables.",
+                    expectations=("Attend agreed sessions, report weekly, follow academic integrity "
+                                  "and privacy rules."),
+                ))
+        notification_service.notify(
+            db, a.student_id,
+            (f"Invitation to join '{p.title}'" if new_status == ApplicationStatus.INVITED
+             else f"You have been accepted into '{p.title}'"),
+            "Open the project to accept your responsibility form and join the team.",
+            kind="invitation", link=f"/project.html?id={p.id}")
+    elif new_status == ApplicationStatus.DECLINED:
+        notification_service.notify(
+            db, a.student_id, f"Application update for '{p.title}'",
+            payload.decision_note or "Your application was not taken forward this time.",
+            kind="info", link=f"/project.html?id={p.id}")
+
+    a.status = new_status
+    a.decision_note = payload.decision_note
+    a.decided_by_id = user.id
+    audit.log(db, user, "application.decided", target_type="project", target_id=p.id,
+              metadata={"application_id": a.id, "status": new_status})
+    db.commit()
+    db.refresh(a)
+    return _application_out(db, a)
+
+
+@router.post("/{project_id}/members/{member_id}/respond", response_model=MemberOut)
+def respond_to_invitation(project_id: int, member_id: int, payload: MemberRespond,
+                          db: DbDep, user: CurrentUser, csrf: CsrfDep):
+    """A student accepts or declines their own team invitation.
+
+    Accepting requires an accepted responsibility form, and joins the team only when
+    there is room - the membership is never marked active before the student says yes.
+    """
+    p = _project_or_404(db, project_id)
+    m = db.get(ProjectMember, member_id)
+    if not m or m.project_id != p.id:
+        raise HTTPException(status_code=404, detail="Invitation not found.")
+    if m.user_id != user.id:
+        raise HTTPException(status_code=403, detail="This invitation is not yours.")
+
+    if payload.accept and m.status == "active":
+        # Accepting the responsibility form already joins the team; answering again
+        # is a harmless no-op rather than an error.
+        _maybe_activate_project(p)
+        db.commit()
+        return _member_out(m)
+    if not payload.accept and m.status == "active":
+        raise HTTPException(status_code=409,
+                            detail="You are already an active member of this team.")
+    if m.status != "invited":
+        raise HTTPException(status_code=409, detail="This invitation has already been answered.")
+
+    if payload.accept:
+        if _team_full(p, m.id):
+            raise HTTPException(status_code=409, detail="This team is already full.")
+        if m.responsibility_form and not m.responsibility_form.accepted:
+            raise HTTPException(
+                status_code=409,
+                detail="Accept your responsibility form before joining the team.")
+        m.status = "active"
+        _maybe_activate_project(p)
+        notification_service.notify(
+            db, p.mentor_id or p.created_by_id, f"{user.full_name} accepted their invitation",
+            f"They have joined '{p.title}'.", kind="info", link=f"/project.html?id={p.id}")
+    else:
+        m.status = "declined"
+        notification_service.notify(
+            db, p.mentor_id or p.created_by_id, f"{user.full_name} declined their invitation",
+            payload.note or "They declined to join this team.", kind="info",
+            link=f"/project.html?id={p.id}")
+
+    audit.log(db, user, "project.invitation_answered", target_type="project", target_id=p.id,
+              metadata={"member_id": member_id, "accept": payload.accept})
+    db.commit()
+    db.refresh(m)
+    return _member_out(m)
+
+
+@router.post("/{project_id}/recruit", response_model=ProjectOut)
+def set_recruitment(project_id: int, db: DbDep, user: CurrentUser, csrf: CsrfDep,
+                    open: bool = Query(default=True)):
+    """Open or close a project for student applications (authorised staff only)."""
+    p = _project_or_404(db, project_id)
+    require_project_staff(db, user, p)
+    p.status = ProjectStatus.RECRUITING if open else ProjectStatus.PLANNING
+    audit.log(db, user, "project.recruitment_changed", target_type="project", target_id=p.id,
+              metadata={"open": open})
+    db.commit()
+    db.refresh(p)
+    return _project_out(db, p)
+
+
 @router.get("/{project_id}", response_model=ProjectOut)
 def get_project(project_id: int, db: DbDep, user: OptionalUser = None):
     p = _project_or_404(db, project_id)
@@ -224,12 +559,12 @@ def update_project(project_id: int, payload: ProjectPatch, db: DbDep,
     p = _project_or_404(db, project_id)
     require_project_staff(db, user, p)
     data = payload.model_dump(exclude_unset=True)
-    allowed_status = {"planning", "active", "on_hold", "completed", "cancelled"}
+    allowed_status = ProjectStatus.ALL
     if "status" in data and data["status"] not in allowed_status:
         raise HTTPException(status_code=400, detail=f"status must be one of {sorted(allowed_status)}")
     if "mentor_id" in data and data["mentor_id"]:
         mentor = db.get(User, data["mentor_id"])
-        if not mentor or mentor.role not in {Role.FACULTY, Role.UNIVERSITY_ADMIN, Role.ADMIN}:
+        if not mentor or mentor.role not in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
             raise HTTPException(status_code=400, detail="Selected mentor is not a faculty member.")
     for k, v in data.items():
         setattr(p, k, v)
@@ -302,6 +637,8 @@ def invite_member(project_id: int, db: DbDep, user: CurrentUser, csrf: CsrfDep,
         ProjectMember.project_id == p.id, ProjectMember.user_id == student_id).first()
     if existing:
         raise HTTPException(status_code=409, detail="This student is already on the team.")
+    if _team_full(p):
+        raise HTTPException(status_code=409, detail="This team is already full.")
 
     m = ProjectMember(
         project_id=p.id, user_id=student_id, team_role=team_role,
@@ -403,7 +740,11 @@ def accept_responsibility(project_id: int, member_id: int, payload: Responsibili
         "data_privacy_confirmed": payload.confirm_data_privacy,
     }, ensure_ascii=False)
     if m.status == "invited":
+        # Joining the team is a capacity-checked transition, never a free upgrade.
+        if _team_full(p, m.id):
+            raise HTTPException(status_code=409, detail="This team is already full.")
         m.status = "active"
+    _maybe_activate_project(p)
     notification_service.notify(
         db, p.mentor_id or p.created_by_id,
         f"Responsibility form accepted by {user.full_name}",

@@ -33,8 +33,9 @@
         <!-- ---------------------------------------------------------------- -->
         <section class="step-panel panel card" data-step="1">
           <div class="panel__head">
-            <h2 class="panel__title">Step 1 · Describe the problem</h2>
-            <p class="panel__sub">Only this step is required. Everything else is optional.</p>
+            <h2 class="panel__title">What's the problem?</h2>
+            <p class="panel__sub">Describe it in your own words, pick an area, and add your city — that is
+              all we need. Everything else is optional.</p>
           </div>
           <div class="panel__body stack">
             <div class="field" data-field="description">
@@ -57,39 +58,38 @@
               <div class="choice-grid" id="domain-grid" role="radiogroup" aria-label="Problem domain"></div>
               <span class="field__error" role="alert" data-error-for="domain"></span>
             </fieldset>
+
+            <div class="field" data-field="city">
+              <label class="field__label" for="city">Which city is this in? <span aria-hidden="true">*</span></label>
+              <input class="input" id="city" name="city" list="city-options" maxlength="120"
+                     autocomplete="off" placeholder="Start typing, e.g. Pune">
+              <datalist id="city-options"></datalist>
+              <span class="field__hint">We never read your device location — please type it. The city lets us
+                find similar reports nearby.</span>
+              <span class="field__error" role="alert"></span>
+            </div>
           </div>
           <div class="form-actions">
-            <span class="muted" style="font-size:var(--fs-caption)">Takes about a minute.</span>
-            <button class="btn btn--primary btn--pill" type="button" id="next-1">Continue → location</button>
+            <span class="muted" style="font-size:var(--fs-caption)">Takes about 30 seconds.</span>
+            <button class="btn btn--primary btn--pill" type="button" id="next-1">Continue → optional details</button>
           </div>
         </section>
 
         <!-- ---------------------------------------------------------------- -->
         <section class="step-panel panel card" data-step="2" hidden>
           <div class="panel__head">
-            <h2 class="panel__title">Step 2 · Where and how big</h2>
-            <p class="panel__sub">The city is required so the platform can find similar reports nearby.
-              Impact and photos are optional — "I don't know" is a valid answer.</p>
+            <h2 class="panel__title">Add anything helpful <span class="muted">(optional)</span></h2>
+            <p class="panel__sub">None of this is required. "I don't know" is a valid answer for every field.</p>
           </div>
           <div class="panel__body stack">
-            <div class="form-grid">
-              <div class="field" data-field="city">
-                <label class="field__label" for="city">City <span aria-hidden="true">*</span></label>
-                <input class="input" id="city" name="city" list="city-options" maxlength="120"
-                       autocomplete="off" placeholder="Start typing, e.g. Pune">
-                <datalist id="city-options"></datalist>
-                <span class="field__hint">We do not read your device location — please type it.</span>
-                <span class="field__error" role="alert"></span>
-              </div>
-              <div class="field" data-field="locality">
-                <label class="field__label" for="locality">Area, ward or locality
-                  <span class="muted">(optional)</span></label>
-                <input class="input" id="locality" name="locality" maxlength="160" autocomplete="off"
-                       placeholder="e.g. Kothrud">
-              </div>
-            </div>
-
             <div id="duplicate-box"></div>
+
+            <div class="field" data-field="locality">
+              <label class="field__label" for="locality">Area, ward or locality
+                <span class="muted">(optional — keeps different neighbourhoods apart)</span></label>
+              <input class="input" id="locality" name="locality" maxlength="160" autocomplete="off"
+                     placeholder="e.g. Kothrud">
+            </div>
 
             <div class="field">
               <span class="field__label" id="impact-legend">How big is the impact?</span>
@@ -147,18 +147,19 @@
         <!-- ---------------------------------------------------------------- -->
         <section class="step-panel panel card" data-step="3" hidden>
           <div class="panel__head">
-            <h2 class="panel__title">Step 3 · Review the summary</h2>
-            <p class="panel__sub">Check that the simple summary matches what you meant. Nothing has been
-              saved or sent to a reviewer yet.</p>
+            <h2 class="panel__title">Here's what we understood</h2>
+            <p class="panel__sub">Check that this short summary matches what you meant. If anything is
+              wrong, edit your report — your own words are always kept. Nothing has been saved yet.</p>
           </div>
           <div class="panel__body" id="summary"></div>
           <div class="form-actions">
-            <button class="btn btn--secondary" type="button" id="back-3">← Edit my report</button>
+            <button class="btn btn--secondary" type="button" id="back-3">← Something isn't right — edit my report</button>
             <button class="btn btn--primary btn--pill btn--lg" type="submit" id="submit-btn">
               Submit problem</button>
           </div>
         </section>
       </form>
+      <section id="confirmation" hidden aria-live="polite"></section>
     </div>
   </main>
   <footer id="site-footer"></footer>
@@ -208,14 +209,16 @@
         requestId: "",
         uploads: [],          // { key, file, name, size, progress, id, url, error }
         preview: null,
+        duplicateDecision: null,   // 'same' | 'different' | null (citizen's own call)
+        duplicateMatchId: null,
         submitting: false,
         analyzedFor: ""       // fingerprint of what was analyzed, to avoid repeat calls
       };
 
       var STEPS = [
-        { label: "Describe", hint: "What is wrong" },
-        { label: "Location", hint: "Where and how big" },
-        { label: "Review", hint: "Check the summary" },
+        { label: "Describe", hint: "Problem, area, city" },
+        { label: "Add details", hint: "Optional" },
+        { label: "Review", hint: "Confirm & submit" },
       ];
 
       // ---- helpers -----------------------------------------------------------
@@ -433,6 +436,7 @@
           category: data.category, use_ai: false,
         }).then(function (res) {
           host.innerHTML = duplicateMarkup(res);
+          wireDuplicateActions(host, res);
         }).catch(function () {
           host.innerHTML = "";
         });
@@ -441,36 +445,59 @@
       function duplicateMarkup(res) {
         var items = (res && res.candidates) || [];
         if (!items.length) {
-          return '<div class="insight insight--success"><p class="insight__label">No similar report found</p>' +
-            '<div class="insight__value">We did not find another report from this city that looks like ' +
-            "this one. Continue below.</div></div>";
+          return '<div class="insight insight--success">' +
+            '<p class="insight__label">No similar report found</p>' +
+            '<div class="insight__value">We did not find another report in this city that looks like ' +
+            "this one. You can carry on.</div></div>";
         }
-        var strong = items.filter(function (i) { return i.likely_duplicate; });
-        var head = strong.length
-          ? '<div class="insight insight--warn"><p class="insight__label">Possible duplicate</p>' +
-            '<div class="insight__value">' + strong.length +
-            (strong.length === 1 ? " report in this city looks very similar." : " reports in this city look very similar.") +
-            " You can still submit — a human reviewer decides whether reports are handled together. " +
-            '<a href="/challenge.html?id=' + strong[0].challenge_id + '" target="_blank" rel="noopener">' +
-            "Open the closest match</a>.</div>" +
-            '<p class="insight__note">' + UI.esc(res.method) + "</p></div>"
-          : '<div class="insight insight--muted"><p class="insight__label">Related reports</p>' +
-            '<div class="insight__value">Some reports from this city share wording or location with yours. ' +
-            "Have a look before submitting.</div></div>";
         var cards = items.slice(0, 3).map(function (i) {
-          return '<div class="dup-card' + (i.likely_duplicate ? " dup-card--strong" : "") + '">' +
+          return '<div class="dup-card' + (i.likely_duplicate ? " dup-card--strong" : "") + '" ' +
+            'data-dup-id="' + i.challenge_id + '">' +
             '<div class="dup-card__head"><span class="dup-card__title">' + UI.esc(i.title) + "</span>" +
-            '<span class="dup-card__score">' + Math.round(i.similarity * 100) + "%</span></div>" +
-            '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(UI.titleCase(i.category)) +
-            (i.locality ? " · " + UI.esc(i.locality) : "") + " · " + UI.esc(UI.titleCase(i.status)) + "</p>" +
-            '<ul class="dup-card__reasons">' + (i.reasons || []).map(function (r) {
-              return "<li>" + UI.esc(r) + "</li>";
-            }).join("") + "</ul>" +
+            (i.likely_duplicate ? '<span class="dup-card__score">likely match</span>' : "") + "</div>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">' +
+              UI.esc(UI.domainLabel(i.category)) +
+              (i.locality ? " · " + UI.esc(i.locality) : "") +
+              " · " + UI.esc(UI.titleCase(i.status)) + "</p>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">' +
+              (i.reasons || []).map(UI.esc).join(" · ") + "</p>" +
             '<a class="btn btn--ghost btn--sm" href="/challenge.html?id=' + i.challenge_id +
-            '" target="_blank" rel="noopener">View report</a></div>';
+            '" target="_blank" rel="noopener">View this report</a></div>';
         }).join("");
-        return head + '<div class="stack">' + cards + "</div>" +
-          '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(res.note) + "</p>";
+
+        var decisionNote = STATE.duplicateDecision === "same"
+          ? '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">Thanks — we will ' +
+            "ask the reviewer to look at both reports together. You can still submit.</p>"
+          : (STATE.duplicateDecision === "different"
+            ? '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">Understood — this ' +
+              "stays a separate report. Nothing is merged automatically.</p>"
+            : "");
+
+        return '<div class="insight insight--warn">' +
+          '<p class="insight__label">This might already have been reported.</p>' +
+          '<div class="insight__value">Have a quick look before you submit. Reports are never merged ' +
+          "automatically, and a human reviewer makes the final call.</div></div>" +
+          '<div class="stack" style="margin-top:var(--space-3)">' + cards + "</div>" +
+          '<div class="btn-group" style="margin-top:var(--space-4)">' +
+            '<button type="button" class="btn btn--secondary btn--sm" data-dup-action="same">' +
+            "This is the same problem</button>" +
+            '<button type="button" class="btn btn--soft btn--sm" data-dup-action="different">' +
+            "This is a different problem</button>" +
+          "</div>" + decisionNote +
+          '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">' +
+            UI.esc((res && res.note) || "") + "</p>";
+      }
+
+      function wireDuplicateActions(host, res) {
+        UI.qsa("[data-dup-action]", host).forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            STATE.duplicateDecision = btn.dataset.dupAction;
+            var first = ((res && res.candidates) || [])[0];
+            STATE.duplicateMatchId = first ? first.challenge_id : null;
+            host.innerHTML = duplicateMarkup(res);
+            wireDuplicateActions(host, res);
+          });
+        });
       }
 
       // ---- evidence uploads -------------------------------------------------
@@ -745,7 +772,8 @@
           ok = false;
         }
         if (!ok) {
-          setStep(data.description && STATE.domain ? 2 : 1);
+          // Description, domain and city all live on step 1 now.
+          setStep(1);
           return;
         }
 
@@ -781,14 +809,64 @@
         var btn = el("submit-btn");
         UI.setBusy(btn, true, "Submitting…");
         API.post("/api/challenges", collect()).then(function (c) {
+          STATE.submitting = false;
+          UI.setBusy(btn, false);
           clearSessionRequestId();
-          UI.toast("Submitted. A reviewer will look at it shortly.", "success", 6000);
-          window.location.href = "/challenge.html?id=" + c.id;
+          UI.toast("Your problem has been submitted.", "success", 6000);
+          renderConfirmation(c);
         }).catch(function (err) {
           STATE.submitting = false;
           UI.setBusy(btn, false);
           UI.toast(err.message, "error", 7000);
         });
+      }
+
+      // A clear, self-contained confirmation — the citizen does not have to open
+      // another page to be sure the report was saved.
+      function renderConfirmation(c) {
+        var s = c.latest_screening || {};
+        var candidates = (STATE.preview && STATE.preview.duplicates &&
+          STATE.preview.duplicates.candidates) || [];
+        var similarLine;
+        if (STATE.duplicateDecision === "same" && STATE.duplicateMatchId) {
+          similarLine = "You told us this matches report #" + STATE.duplicateMatchId +
+            ". A reviewer will look at both together — nothing was merged automatically.";
+        } else if (candidates.length) {
+          similarLine = "We showed you " + candidates.length + " similar report" +
+            (candidates.length === 1 ? "" : "s") + " and you marked this as a different problem.";
+        } else {
+          similarLine = "No similar reports were found in your city.";
+        }
+
+        el("stepper").innerHTML = "";
+        el("report-form").hidden = true;
+        var host = el("confirmation");
+        host.hidden = false;
+        host.innerHTML =
+          '<div class="panel card" style="text-align:center">' +
+            '<div style="font-size:44px" aria-hidden="true">✅</div>' +
+            '<h1 style="margin-top:var(--space-3)">Your problem has been submitted.</h1>' +
+            '<p class="lead" style="max-width:62ch;margin-inline:auto">A reviewer will read your report and ' +
+            "the simple summary below, then decide the next step. You do not need to open any other page " +
+            "to confirm it was saved.</p>" +
+            '<div class="chip-row" style="justify-content:center;margin:var(--space-5) 0 0">' +
+              '<span class="chip" style="pointer-events:none">Reference #' + c.id + "</span>" +
+              UI.badge(c.status) +
+            "</div>" +
+          "</div>" +
+          '<div class="insight-grid" style="margin-top:var(--space-5)">' +
+            UI.insight("In simple words", s.one_sentence || "Your report has been received.") +
+            UI.insight("Current status", UI.titleCase(c.status),
+              { tone: "muted", note: "A human reviewer decides what happens next — AI does not." }) +
+            UI.insight("Similar reports", similarLine,
+              { tone: candidates.length ? "warn" : "muted" }) +
+          "</div>" +
+          '<div class="btn-group" style="margin-top:var(--space-5)">' +
+            '<a class="btn btn--primary btn--pill btn--lg" href="/challenge.html?id=' + c.id +
+            '">Track this problem</a>' +
+            '<a class="btn btn--secondary btn--pill btn--lg" href="/dashboard.html">Go to my dashboard</a>' +
+          "</div>";
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function loadCities() {
@@ -861,6 +939,10 @@
             UI.qsa('[data-error-for="domain"]').forEach(function (e) {
               e.textContent = "Choose the area this belongs to.";
             });
+            ok = false;
+          }
+          if (!data.city) {
+            UI.showFieldError(el("report-form"), "city", "Please enter your city.");
             ok = false;
           }
           if (ok) setStep(2);

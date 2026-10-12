@@ -56,7 +56,7 @@ def get_solution(solution_id: int, db: DbDep, user: OptionalUser = None):
 
 @router.post("", response_model=SolutionOut, status_code=status.HTTP_201_CREATED)
 def create_solution(payload: SolutionIn, db: DbDep, user: CurrentUser, csrf: CsrfDep):
-    if user.role not in {Role.FACULTY, Role.UNIVERSITY_ADMIN, Role.ADMIN}:
+    if user.role not in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
         raise HTTPException(status_code=403, detail="Only faculty or staff can add repository entries.")
     if payload.source_url and not payload.source_label:
         raise HTTPException(
@@ -86,7 +86,7 @@ def create_solution(payload: SolutionIn, db: DbDep, user: CurrentUser, csrf: Csr
 @router.post("/{solution_id}/review", response_model=SolutionOut)
 def review_solution(solution_id: int, db: DbDep, user: CurrentUser, csrf: CsrfDep,
                     decision: str = Query(...)):
-    if user.role not in {Role.FACULTY, Role.UNIVERSITY_ADMIN, Role.ADMIN}:
+    if user.role not in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
         raise HTTPException(status_code=403, detail="Only faculty or staff can review repository entries.")
     if decision not in {"mentor_verified", "rejected", "unreviewed"}:
         raise HTTPException(status_code=400, detail="Unknown review status.")
@@ -104,7 +104,7 @@ def review_solution(solution_id: int, db: DbDep, user: CurrentUser, csrf: CsrfDe
 @router.post("/from-project/{project_id}", response_model=SolutionOut, status_code=status.HTTP_201_CREATED)
 def add_from_project(project_id: int, db: DbDep, user: CurrentUser, csrf: CsrfDep):
     """Publish a completed project as reusable prior art (staff only)."""
-    if user.role not in {Role.FACULTY, Role.UNIVERSITY_ADMIN, Role.ADMIN}:
+    if user.role not in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
         raise HTTPException(status_code=403, detail="Only faculty or staff can publish prior art.")
     p = db.get(Project, project_id)
     if not p:

@@ -51,7 +51,18 @@ class UserOut(ORMModel):
     role: str
     bio: Optional[str] = None
     is_verified: bool = False
+    # Capabilities held within the combined University & Faculty role.
+    capabilities: list[str] = Field(default_factory=list)
     created_at: Optional[dt.datetime] = None
+
+    @field_validator("capabilities", mode="before")
+    @classmethod
+    def _caps(cls, v):
+        if v is None or v == "":
+            return []
+        if isinstance(v, str):
+            return [c.strip() for c in v.split(",") if c.strip()]
+        return v
 
 
 class UserPatch(BaseModel):
@@ -412,6 +423,62 @@ class ProjectOut(ORMModel):
     university_name: Optional[str] = None
     member_count: int = 0
     progress_pct: float = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Project applications & invitations (student → project workflow)
+# ---------------------------------------------------------------------------
+
+class ApplicationIn(BaseModel):
+    message: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ApplicationDecision(BaseModel):
+    """Staff decision on an application.
+
+    ``under_review`` keeps it in the queue, ``invited`` creates an invitation the
+    student must still accept, ``accepted`` invites and pre-approves in one step,
+    ``declined`` closes it with an optional reason. AI never makes this call.
+    """
+    status: str
+    team_role: Optional[str] = Field(default=None, max_length=120)
+    decision_note: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("status")
+    @classmethod
+    def _status(cls, v: str) -> str:
+        from .models import ApplicationStatus
+        v = (v or "").strip().lower()
+        if v not in ApplicationStatus.ALL:
+            raise ValueError(f"status must be one of {sorted(ApplicationStatus.ALL)}")
+        return v
+
+
+class ApplicationOut(ORMModel):
+    id: int
+    project_id: int
+    student_id: int
+    message: Optional[str] = None
+    status: str
+    match_score: Optional[float] = None
+    match_reason: Optional[str] = None
+    decision_note: Optional[str] = None
+    created_at: Optional[dt.datetime] = None
+    updated_at: Optional[dt.datetime] = None
+    # Joined display fields (filled by the router)
+    student_name: Optional[str] = None
+    student_department: Optional[str] = None
+    student_skills: Optional[str] = None
+    student_experience: Optional[str] = None
+    project_title: Optional[str] = None
+    decided_by_name: Optional[str] = None
+    member_id: Optional[int] = None
+
+
+class MemberRespond(BaseModel):
+    """A student's answer to a team invitation."""
+    accept: bool
+    note: Optional[str] = Field(default=None, max_length=1000)
 
 
 class ChallengeOut(ORMModel):

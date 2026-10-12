@@ -72,6 +72,10 @@
           ["Overview", "overview", "▤"], ["Review queue & projects", "work", "⚖"],
           ["Activity", "activity", "🔔"],
         ],
+        university_faculty: [
+          ["Overview", "overview", "▤"], ["Review & supervise", "work", "⚖"],
+          ["Activity", "activity", "🔔"],
+        ],
         university_admin: [
           ["Overview", "overview", "▤"], ["Review queue & projects", "work", "⚖"],
           ["Activity", "activity", "🔔"],
@@ -412,10 +416,43 @@
         }).catch(function (e) { el("recent-list").innerHTML = UI.errorState(e.message); });
       }
 
+      // Students get the "Projects you can join" panel on their own dashboard so the
+      // path from an approved challenge to joining a team is obvious.
+      function discoveryPanel() {
+        if (!user || user.role !== "student") return "";
+        return '<section class="panel card" style="margin-top:var(--space-5)">' +
+          '<div class="panel__head"><h2 class="panel__title">Projects you can join</h2>' +
+          '<a class="btn btn--secondary btn--sm" href="/projects.html">See all</a></div>' +
+          '<div class="panel__body" id="join-list">' + UI.loading("Finding projects…") + "</div></section>";
+      }
+
+      function loadJoinPanel() {
+        var host = el("join-list");
+        if (!host) return;
+        API.get("/api/projects/open").then(function (res) {
+          var items = (res.items || []).slice(0, 3);
+          if (!items.length) {
+            host.innerHTML = '<p class="muted">No projects are open for recruitment right now. ' +
+              "They appear here as soon as a university opens one.</p>";
+            return;
+          }
+          host.innerHTML = items.map(function (p) {
+            return '<div class="detail-row"><div><strong>' + UI.esc(p.title) + "</strong> " +
+              (p.match_score == null ? ""
+                : '<span class="badge badge--success">Match ' + Math.round(p.match_score) + "%</span>") +
+              '<p class="muted" style="font-size:var(--fs-fine)">' +
+              UI.esc(p.match_reason || "Add your skills in your profile to see a match.") + "</p>" +
+              '<a class="btn btn--primary btn--sm" href="/projects.html" ' +
+              'style="margin-top:var(--space-2)">Apply to Join</a></div></div>';
+          }).join("");
+        }).catch(function (e) { host.innerHTML = UI.errorState(e.message); });
+      }
+
       function workTabTitle() {
         return { citizen: "My reported problems", student: "My projects and tasks",
                  company: "Sponsorships and talent", admin: "Review queue and projects",
                  faculty: "Review queue and projects",
+                 university_faculty: "Review and supervision",
                  university_admin: "Review queue and projects" }[user.role] || "Work";
       }
 
@@ -459,7 +496,8 @@
         renderNav(user.role, counts);
 
         content.innerHTML =
-          '<div data-panel="overview">' + kpis() + chartsPanel() + actionItemsPanel() + "</div>" +
+          '<div data-panel="overview">' + kpis() + chartsPanel() + discoveryPanel() +
+          actionItemsPanel() + "</div>" +
           '<div data-panel="work" hidden><section class="panel card"><div class="panel__head">' +
           '<h2 class="panel__title">' + UI.esc(workTabTitle()) + "</h2>" +
           '<p class="panel__sub" id="work-count">0 shown</p></div><div class="panel__body">' +
@@ -504,6 +542,7 @@
         });
 
         renderWorkList();
+        loadJoinPanel();
         loadActivityExtras();
 
         // the monthly chart uses records this view is allowed to see

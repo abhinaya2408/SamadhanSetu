@@ -10,18 +10,46 @@
   let notifTimer = null;
 
   const PUBLIC_NAV = [
+    { href: "/index.html", label: "Home" },
     { href: "/challenges.html", label: "Explore problems" },
-    { href: "/competitions.html", label: "Competitions" },
-    { href: "/impact.html", label: "Impact" },
     { href: "/how-it-works.html", label: "How it works" },
+    { href: "/impact.html", label: "Impact" },
   ];
+
+  // Signed-in navigation is kept small and permission-aware: everyone gets a
+  // single "Dashboard" entry (there is no separate University / Faculty link).
+  function memberNav(u) {
+    const items = [
+      { href: "/dashboard.html", label: "Dashboard" },
+      { href: "/challenges.html", label: "Explore problems" },
+      { href: "/projects.html", label: "Projects" },
+      { href: "/competitions.html", label: "Competitions" },
+      { href: "/profile.html", label: "Profile" },
+    ];
+    if (u && u.role === "admin") {
+      items.push({ href: "/admin.html", label: "Administration" });
+    }
+    return items;
+  }
 
   function roleLabel(role) {
     const map = {
-      citizen: "Citizen", student: "Student", faculty: "Faculty",
-      university_admin: "University admin", company: "Company", admin: "Administrator",
+      citizen: "Citizen", student: "Student",
+      university_faculty: "University & Faculty", faculty: "University & Faculty",
+      university_admin: "University & Faculty",
+      company: "Company", admin: "Administrator",
     };
     return map[role] || role;
+  }
+
+  function capabilitiesLabel(user) {
+    const caps = (user && user.capabilities) || [];
+    const map = {
+      challenge_reviewer: "Challenge reviewer",
+      project_mentor: "Project mentor",
+      university_coordinator: "University coordinator",
+    };
+    return caps.map(function (c) { return map[c] || c; }).join(" · ");
   }
 
   function initial(name) {
@@ -32,22 +60,25 @@
     const host = document.getElementById("site-header");
     if (!host) return;
 
-    const nav = PUBLIC_NAV.map(function (item) {
+    const links = user ? memberNav(user) : PUBLIC_NAV;
+    const nav = links.map(function (item) {
       return '<a class="site-nav__link" href="' + item.href + '">' + item.label + "</a>";
     }).join("");
 
     let account;
     if (user) {
+      const caps = capabilitiesLabel(user);
       account =
         '<button class="notif-bell" id="notif-bell" aria-label="Notifications" aria-haspopup="true">' +
         "🔔" + '<span class="notif-bell__count" id="notif-count" hidden>0</span></button>' +
-        '<a class="btn btn--secondary btn--sm" href="/dashboard.html">' +
+        '<a class="btn btn--secondary btn--sm" href="/dashboard.html" title="' +
+        escapeHtml(caps || roleLabel(user.role)) + '">' +
         '<span aria-hidden="true">' + escapeHtml(initial(user.full_name)) + "</span> Dashboard</a>" +
         '<button class="btn btn--ghost btn--sm" id="logout-btn">Sign out</button>';
     } else {
       account =
-        '<a class="btn btn--ghost btn--sm" href="/login.html">Sign in</a>' +
-        '<a class="btn btn--primary btn--sm" href="/register.html">Get started</a>';
+        '<a class="btn btn--ghost btn--sm" href="/login.html">Sign In</a>' +
+        '<a class="btn btn--primary btn--sm" href="/register.html">Get Started</a>';
     }
 
     host.className = "site-header";
@@ -109,26 +140,26 @@
       "<div>" +
       '<a class="brand" href="/index.html"><span class="brand__mark" aria-hidden="true">◆</span>' +
       '<span>Samadhan<span class="brand__bridge">Setu</span></span></a>' +
-      '<p class="muted" style="font-size:var(--fs-caption);margin-top:var(--space-3);max-width:34ch">' +
-      "From real problems to real solutions — with human review at every decision point.</p>" +
+      '<p class="muted" style="font-size:var(--fs-caption);margin-top:var(--space-3);max-width:36ch">' +
+      "SamadhanSetu connects a community problem a citizen describes to a student team that can " +
+      "build and measure a solution — with human review at every decision.</p>" +
       "</div>" +
-      "<div><h4>Platform</h4><ul>" +
-      '<li><a href="/challenges.html">Explore problems</a></li>' +
-      '<li><a href="/submit.html">Report a problem</a></li>' +
+      "<div><h4>Explore</h4><ul>" +
+      '<li><a href="/challenges.html">Explore Problems</a></li>' +
+      '<li><a href="/how-it-works.html">How It Works</a></li>' +
       '<li><a href="/competitions.html">Competitions</a></li>' +
-      '<li><a href="/impact.html">Impact record</a></li>' +
+      '<li><a href="/impact.html">Impact</a></li>' +
       "</ul></div>" +
-      "<div><h4>Access</h4><ul>" +
-      '<li><a href="/register.html">Create an account</a></li>' +
-      '<li><a href="/login.html">Sign in</a></li>' +
-      '<li><a href="/dashboard.html">Your dashboard</a></li>' +
-      '<li><a href="/api/health">System status</a></li>' +
+      "<div><h4>Get started</h4><ul>" +
+      '<li><a href="/submit.html">Report a Problem</a></li>' +
+      '<li><a href="/projects.html">Explore Projects</a></li>' +
+      '<li><a href="/login.html">Sign In</a></li>' +
+      '<li><a href="/register.html">Register</a></li>' +
       "</ul></div>" +
-      "<div><h4>Honesty notes</h4><ul>" +
-      "<li>AI assists screening &amp; matching</li>" +
-      "<li>Humans make every decision</li>" +
+      "<div><h4>How it stays honest</h4><ul>" +
+      "<li>AI assists — people decide</li>" +
       "<li>Demo data is always labelled</li>" +
-      "<li>No external repository search</li>" +
+      "<li>Impact states its limitations</li>" +
       "</ul></div>" +
       "</div>" +
       '<div class="container container--wide site-footer__legal">' +

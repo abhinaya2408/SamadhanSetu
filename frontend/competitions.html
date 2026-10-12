@@ -33,7 +33,7 @@
   <script>
     (function () {
       var user = null;
-      var STAFF = ["admin", "faculty", "university_admin"];
+      var STAFF = ["admin", "faculty", "university_admin", "university_faculty"];
       function isStaff() { return user && STAFF.indexOf(user.role) !== -1; }
 
       async function loadList() {

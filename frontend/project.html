@@ -20,6 +20,7 @@
     <div class="tabs" id="tabs" role="tablist">
       <button class="tabs__btn is-active" data-tab="overview" role="tab">Overview</button>
       <button class="tabs__btn" data-tab="team" role="tab">Team</button>
+      <button class="tabs__btn" data-tab="applications" role="tab" id="tab-applications" hidden>Applications</button>
       <button class="tabs__btn" data-tab="tasks" role="tab">Tasks</button>
       <button class="tabs__btn" data-tab="milestones" role="tab">Milestones</button>
       <button class="tabs__btn" data-tab="reports" role="tab">Reports</button>
@@ -36,8 +37,8 @@
   <script>
     (function () {
       var id = parseInt(UI.param("id"), 10);
-      var user = null, project = null, overview = null, members = [];
-      var STAFF = ["admin", "faculty", "university_admin"];
+      var user = null, project = null, overview = null, members = [], allMembers = [];
+      var STAFF = ["admin", "faculty", "university_admin", "university_faculty"];
 
       function isStaff() {
         if (!user) return false;
@@ -60,7 +61,12 @@
           return;
         }
         members = overview.members || [];
+        try {
+          allMembers = await API.get("/api/projects/" + id + "/members") || [];
+        } catch (e) { allMembers = []; }
+        if (isStaff()) UI.qs("#tab-applications").hidden = false;
         renderHead();
+        renderInviteBanner();
         showTab("overview");
       }
 
@@ -86,7 +92,8 @@
         var panel = UI.qs("#panel");
         panel.innerHTML = UI.loading("Loading…");
         ({ overview: tabOverview, team: tabTeam, tasks: tabTasks, milestones: tabMilestones,
-           reports: tabReports, reviews: tabReviews, impact: tabImpact }[tab] || tabOverview)(panel);
+           reports: tabReports, reviews: tabReviews, impact: tabImpact,
+           applications: tabApplications }[tab] || tabOverview)(panel);
       }
 
       // ---- Overview --------------------------------------------------------
@@ -581,6 +588,147 @@
           UI.setBusy(btn, true, "Saving…");
           try { await API.post("/api/projects/" + id + "/impact", payload); UI.toast("Impact report saved.", "success"); tabImpact(panel); }
           catch (err) { UI.setBusy(btn, false); UI.toast(err.message, "error"); }
+        });
+      }
+
+      // ---- Applications (staff) & invitations (students) ------------------
+
+      function myInvitation() {
+        if (!user) return null;
+        return allMembers.filter(function (m) {
+          return m.user_id === user.id && m.status === "invited";
+        })[0] || null;
+      }
+
+      function renderInviteBanner() {
+        var host = UI.qs("#head");
+        var inv = myInvitation();
+        if (!inv || !host) return;
+        var banner = document.createElement("div");
+        banner.className = "insight insight--warn";
+        banner.style.marginBottom = "var(--space-5)";
+        banner.innerHTML = '<p class="insight__label">You have an invitation to join this team</p>' +
+          '<div class="insight__value">Role: ' + UI.esc(inv.team_role || "member") +
+          (inv.match_reason ? " — " + UI.esc(inv.match_reason) : "") + "</div>" +
+          '<div class="btn-group" style="margin-top:var(--space-3)">' +
+          '<button class="btn btn--primary btn--sm" id="invite-accept">Accept invitation</button>' +
+          '<button class="btn btn--soft btn--sm" id="invite-decline">Decline</button></div>' +
+          '<p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-2)">' +
+          "Accepting requires your responsibility form (Team tab). You are not a member until you accept.</p>";
+        host.appendChild(banner);
+        UI.qs("#invite-accept").addEventListener("click", function () {
+          respondInvitePage(inv, true);
+        });
+        UI.qs("#invite-decline").addEventListener("click", function () {
+          respondInvitePage(inv, false);
+        });
+      }
+
+      async function respondInvitePage(inv, accept) {
+        try {
+          await API.post("/api/projects/" + id + "/members/" + inv.id + "/respond",
+            { accept: accept });
+          UI.toast(accept ? "Welcome to the team!" : "Invitation declined.", "success");
+          boot();
+        } catch (e) {
+          if (accept && e.status === 409) {
+            UI.toast("Accept your responsibility form in the Team tab first.", "info", 6000);
+            showTab("team");
+            return;
+          }
+          UI.toast(e.message, "error");
+        }
+      }
+
+      async function tabApplications(panel) {
+        if (!isStaff()) {
+          panel.innerHTML = UI.emptyState("Lock", "Not available",
+            "Only the mentor or university staff can review applications.");
+          return;
+        }
+        panel.innerHTML = UI.loading("Loading applications...");
+        var apps = [];
+        try { apps = await API.get("/api/projects/" + id + "/applications"); }
+        catch (e) { panel.innerHTML = UI.errorState(e.message); return; }
+
+        var recruiting = project.status === "recruiting";
+        var head = '<section class="panel card" style="margin-bottom:var(--space-5)">' +
+          '<div class="panel__head"><h2 class="panel__title">Recruitment</h2>' +
+          '<p class="panel__sub">Open or close this project for student applications.</p></div>' +
+          '<div class="panel__body row">' +
+          '<span class="badge ' + (recruiting ? "badge--success" : "badge--neutral") + '">' +
+          (recruiting ? "Open for recruitment" : "Closed") + "</span>" +
+          '<button class="btn ' + (recruiting ? "btn--soft" : "btn--primary") + ' btn--sm" id="recruit-toggle">' +
+          (recruiting ? "Close recruitment" : "Open for recruitment") + "</button></div></section>";
+
+        if (!apps.length) {
+          panel.innerHTML = head + UI.emptyState("No applications yet",
+            recruiting ? "Applications will appear here as students apply." : "Open recruitment so students can apply.");
+          wireRecruit(panel);
+          return;
+        }
+        var rows = apps.map(function (a) {
+          var actions;
+          if (a.status === "applied" || a.status === "under_review") {
+            actions = '<div class="field" style="margin:0 0 var(--space-2) 0"><label class="field__label" for="role-' +
+              a.id + '">Team role</label><input class="input" id="role-' + a.id +
+              '" value="member" maxlength="120"></div>' +
+              '<div class="btn-group">' +
+              '<button class="btn btn--primary btn--sm app-act" data-id="' + a.id + '" data-status="invited">Invite</button>' +
+              '<button class="btn btn--secondary btn--sm app-act" data-id="' + a.id + '" data-status="accepted">Accept</button>' +
+              '<button class="btn btn--ghost btn--sm app-act" data-id="' + a.id + '" data-status="declined">Decline</button></div>';
+          } else {
+            actions = '<p class="muted" style="font-size:var(--fs-fine)">Decision: ' +
+              UI.esc(UI.titleCase(a.status)) + (a.decided_by_name ? " by " + UI.esc(a.decided_by_name) : "") + "</p>";
+          }
+          return '<div class="panel-plain" style="margin-bottom:var(--space-4)">' +
+            '<div class="panel-plain__head"><h3 class="panel-plain__title">' +
+            UI.esc(a.student_name || ("Student #" + a.student_id)) + "</h3>" + UI.badge(a.status) + "</div>" +
+            '<p class="muted" style="font-size:var(--fs-caption)">' +
+            UI.esc(a.student_department || "Department not set") + " - " +
+            UI.esc(a.student_experience || "experience not set") + "</p>" +
+            (a.student_skills ? '<p class="muted" style="font-size:var(--fs-fine)">Skills: ' +
+              UI.esc(a.student_skills) + "</p>" : "") +
+            (a.message ? '<p style="font-size:var(--fs-caption)">"' + UI.esc(a.message) + '"</p>' : "") +
+            '<div class="insight insight--muted" style="margin:var(--space-3) 0">' +
+            '<p class="insight__label">Match' + (a.match_score == null ? "" : " " + Math.round(a.match_score) + "%") +
+            '</p><div class="insight__value">' + UI.esc(a.match_reason || "No match explanation stored.") +
+            "</div></div>" + actions + "</div>";
+        }).join("");
+        panel.innerHTML = head + '<section class="panel card"><div class="panel__head"><h2 class="panel__title">' +
+          apps.length + " application" + (apps.length === 1 ? "" : "s") + "</h2>" +
+          '<p class="panel__sub">Ranked by the transparent skill match. A human makes every decision.</p></div>' +
+          '<div class="panel__body">' + rows + "</div></section>";
+        wireRecruit(panel);
+        UI.qsa(".app-act", panel).forEach(function (b) {
+          b.addEventListener("click", async function () {
+            var roleEl = UI.qs("#role-" + b.dataset.id);
+            UI.setBusy(b, true, "Saving...");
+            try {
+              await API.patch("/api/projects/" + id + "/applications/" + b.dataset.id, {
+                status: b.dataset.status,
+                team_role: roleEl && roleEl.value.trim() ? roleEl.value.trim() : "member",
+              });
+              UI.toast("Application updated.", "success");
+              tabApplications(panel);
+            } catch (err) { UI.setBusy(b, false); UI.toast(err.message, "error"); }
+          });
+        });
+      }
+
+      function wireRecruit(panel) {
+        var btn = UI.qs("#recruit-toggle", panel);
+        if (!btn) return;
+        btn.addEventListener("click", async function () {
+          var open = project.status !== "recruiting";
+          UI.setBusy(btn, true, "Saving...");
+          try {
+            var updated = await API.post("/api/projects/" + id + "/recruit", {}, { open: open });
+            project.status = updated.status;
+            UI.toast(open ? "Project is open for recruitment." : "Recruitment closed.", "success");
+            renderHead();
+            tabApplications(panel);
+          } catch (err) { UI.setBusy(btn, false); UI.toast(err.message, "error"); }
         });
       }
 

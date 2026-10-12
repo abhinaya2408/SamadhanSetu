@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SamadhanSetu — From real problems to real solutions</title>
-  <meta name="description" content="Citizens report real societal problems, AI assists screening and matching, and university students build verified solutions — with human review at every decision.">
+  <title>SamadhanSetu — Civic problem solving, reviewed by people</title>
+  <meta name="description" content="Report a problem in your community. AI helps explain it clearly. Eligible challenges connect with students and universities building practical solutions — with human review at every decision.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/design-system.css">
   <link rel="stylesheet" href="/assets/css/styles.css">
   <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/home.css">
   <link rel="stylesheet" href="/assets/css/responsive.css">
 </head>
 <body>
@@ -18,119 +19,316 @@
   <header id="site-header"></header>
 
   <main id="main">
-    <!-- Hero -->
-    <section class="hero band">
-      <div class="container hero__inner">
-        <span class="eyebrow">Civic problem solving, reviewed by people</span>
-        <h1>Real problems, reported by citizens.<br><em>Real solutions, built by students.</em></h1>
-        <p class="hero__lead lead">
-          SamadhanSetu connects the neighbourhood problem a citizen describes to a university
-          student team that can build and verify a solution. AI helps summarise and match —
-          a human reviewer approves every decision.
-        </p>
-        <div class="hero__actions btn-group">
-          <a class="btn btn--primary btn--pill btn--lg" href="/submit.html">Report a problem</a>
-          <a class="btn btn--secondary btn--pill btn--lg" href="/challenges.html">Explore approved problems</a>
-        </div>
-        <div class="search-pill" role="search" style="max-width:640px">
-          <div class="input-group">
-            <span class="input-group__icon" aria-hidden="true">⌕</span>
-            <label class="visually-hidden" for="hero-search">Search problems</label>
-            <input class="input" id="hero-search" type="search" placeholder="Search problems — water, street lighting, waste…">
+    <!-- =====================================================================
+         HERO
+         ===================================================================== -->
+    <section class="hero-editorial">
+      <div class="container container--wide hero-editorial__grid">
+        <div class="hero-editorial__copy">
+          <span class="eyebrow">A bridge from problems to solutions</span>
+          <h1>Civic problem solving, reviewed by people.</h1>
+          <p class="hero-editorial__lead">
+            Report a problem in your community. Let AI help explain it clearly. Connect eligible
+            challenges with students and universities working towards practical solutions.
+          </p>
+          <div class="hero-editorial__actions btn-group">
+            <a class="btn btn--primary btn--pill btn--lg" href="/submit.html">Report a Problem</a>
+            <a class="btn btn--secondary btn--pill btn--lg" href="/challenges.html">Explore Problems</a>
           </div>
-          <button class="btn btn--primary btn--pill" id="hero-search-btn">Search</button>
+          <p class="hero-trust">
+            <span class="hero-trust__pill"><span class="hero-trust__dot" aria-hidden="true"></span>
+              AI-assisted understanding</span>
+            <span class="hero-trust__pill"><span class="hero-trust__dot" aria-hidden="true"></span>
+              Human-reviewed decisions</span>
+            <span class="hero-trust__pill"><span class="hero-trust__dot" aria-hidden="true"></span>
+              Student-led solutions</span>
+          </p>
         </div>
-        <p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-3)">
-          This is a demonstration deployment. Seeded records are clearly labelled
-          <span class="tag-demo">Demo data</span>.
-        </p>
+        <figure class="hero-editorial__art">
+          <img src="/assets/img/hero-community.svg"
+               alt="A citizen photographs a broken street light in a neighbourhood, a map shows related reports, students build a prototype, and a faculty mentor reviews it."
+               width="820" height="620" fetchpriority="high">
+          <figcaption class="hero-editorial__badge">
+            <span style="font-size:26px" aria-hidden="true">🔗</span>
+            <span>
+              <strong>One connected journey</strong>
+              <span>Problem → review → project → measured outcome, on the same record.</span>
+            </span>
+          </figcaption>
+        </figure>
       </div>
     </section>
 
-    <!-- Live stats from the real database -->
-    <section class="band band--soft">
+    <!-- =====================================================================
+         SECTION A — Live community intelligence
+         ===================================================================== -->
+    <section class="band band--soft" id="community-intelligence">
       <div class="container">
-        <div class="stat-row" id="home-stats" aria-live="polite">
-          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Approved problems</div></div>
-          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Active projects</div></div>
-          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Participating universities</div></div>
-          <div class="stat"><div class="stat__value">—</div><div class="stat__label">Verified impact reports</div></div>
+        <div class="section-head">
+          <span class="eyebrow">Live community intelligence</span>
+          <h2>What the platform is working on right now</h2>
+          <p class="lead">Every figure below is read from this deployment's database. Seeded
+            demonstration records are labelled.</p>
+        </div>
+
+        <div class="metric-grid" id="intel-metrics" aria-live="polite">
+          <div class="metric-card"><div class="metric-card__value">—</div><div class="metric-card__label">Problems reported</div></div>
+          <div class="metric-card"><div class="metric-card__value">—</div><div class="metric-card__label">Unique problem clusters</div></div>
+          <div class="metric-card"><div class="metric-card__value">—</div><div class="metric-card__label">Awaiting review</div></div>
+          <div class="metric-card"><div class="metric-card__value">—</div><div class="metric-card__label">Projects started</div></div>
+          <div class="metric-card"><div class="metric-card__value">—</div><div class="metric-card__label">Projects completed</div></div>
+        </div>
+
+        <div class="intel-layout">
+          <div class="panel-plain">
+            <div class="panel-plain__head">
+              <h3 class="panel-plain__title">Problems by domain</h3>
+              <span class="muted" style="font-size:var(--fs-fine)" id="intel-source"></span>
+            </div>
+            <div id="intel-chart"><div class="skeleton skeleton--text"></div></div>
+          </div>
+          <div class="panel-plain">
+            <div class="panel-plain__head">
+              <h3 class="panel-plain__title">Pipeline snapshot</h3>
+            </div>
+            <div id="intel-pipeline"></div>
+          </div>
+        </div>
+        <p class="muted" style="font-size:var(--fs-fine);margin-top:var(--space-4)" id="intel-note"></p>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         SECTION B — Explore community problems
+         ===================================================================== -->
+    <section class="band" id="explore">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Open for student innovation</span>
+          <h2>Explore community problems</h2>
+          <p class="lead">Problems a human reviewer cleared for a student team. Filter by domain, or
+            search for a city or locality.</p>
+        </div>
+
+        <div class="explore-toolbar">
+          <label class="visually-hidden" for="city-search">Search by city or locality</label>
+          <input class="input" id="city-search" type="search" placeholder="Search city or locality…"
+                 autocomplete="off">
+          <div class="explore-toolbar__spacer"></div>
+          <div class="category-strip" id="domain-filter" role="group" aria-label="Filter by domain"></div>
+        </div>
+
+        <div class="loading-cards" id="problem-grid" aria-live="polite">
+          <div class="card"><div class="skeleton skeleton--text"></div></div>
+          <div class="card"><div class="skeleton skeleton--text"></div></div>
+          <div class="card"><div class="skeleton skeleton--text"></div></div>
+        </div>
+
+        <div style="margin-top:var(--space-6)">
+          <a class="btn btn--secondary btn--pill" href="/challenges.html">Browse all problems →</a>
         </div>
       </div>
     </section>
 
-    <!-- How it works -->
-    <section class="band">
+    <!-- =====================================================================
+         SECTION C — How SamadhanSetu works (six-step visual journey)
+         ===================================================================== -->
+    <section class="band band--soft" id="how-it-works">
       <div class="container">
         <div class="section-head section-head--center">
           <span class="eyebrow">The path from problem to solution</span>
-          <h2>Six steps, with a human gate at the decision</h2>
-          <p class="lead">AI never approves, rejects, or scores anything on its own. It assists; people decide.</p>
+          <h2>How SamadhanSetu works</h2>
+          <p class="lead">Six stages. AI assists at every one; a person decides at the point that matters.</p>
         </div>
-        <ol class="flow" style="margin-top:var(--space-7)">
-          <li class="flow__item"><span class="flow__num">1</span><h3>Citizen submits</h3><p>The problem is stored exactly as written — never rewritten by AI.</p></li>
-          <li class="flow__item"><span class="flow__num">2</span><h3>AI screens</h3><p>Summarises the problem, finds missing details and flags government dependency.</p></li>
-          <li class="flow__item"><span class="flow__num">3</span><h3>Human decides</h3><p>A faculty or admin reviewer approves, declines, or asks clarifications, with a written reason.</p></li>
-          <li class="flow__item"><span class="flow__num">4</span><h3>University forms a team</h3><p>Deterministic skill-based matching proposes students; a mentor makes the call.</p></li>
-          <li class="flow__item"><span class="flow__num">5</span><h3>Students build &amp; report</h3><p>Tasks, milestones, evidence and weekly reports are tracked in the open.</p></li>
-          <li class="flow__item"><span class="flow__num">6</span><h3>Verified impact</h3><p>Results are recorded with their limitations — claims are never inflated.</p></li>
+
+        <ol class="journey-road" style="list-style:none;padding:0;margin:0">
+          <li class="journey-node">
+            <span class="journey-node__num" aria-hidden="true">1</span>
+            <div class="journey-node__art"><img src="/assets/img/step-1-report.svg" alt="" width="220" height="150" loading="lazy"></div>
+            <h3 class="journey-node__title">Report</h3>
+            <p class="journey-node__text">A citizen submits a simple description and an optional photo.</p>
+          </li>
+          <li class="journey-node">
+            <span class="journey-node__num" aria-hidden="true">2</span>
+            <div class="journey-node__art"><img src="/assets/img/step-2-understand.svg" alt="" width="220" height="150" loading="lazy"></div>
+            <h3 class="journey-node__title">Understand</h3>
+            <p class="journey-node__text">AI turns the description into a clear, simple explanation.</p>
+          </li>
+          <li class="journey-node">
+            <span class="journey-node__num" aria-hidden="true">3</span>
+            <div class="journey-node__art"><img src="/assets/img/step-3-connect.svg" alt="" width="220" height="150" loading="lazy"></div>
+            <h3 class="journey-node__title">Connect</h3>
+            <p class="journey-node__text">Similar reports in the same city are identified and grouped.</p>
+          </li>
+          <li class="journey-node">
+            <span class="journey-node__num" aria-hidden="true">4</span>
+            <div class="journey-node__art"><img src="/assets/img/step-4-review.svg" alt="" width="220" height="150" loading="lazy"></div>
+            <h3 class="journey-node__title">Review</h3>
+            <p class="journey-node__text">An authorised university reviewer evaluates the challenge.</p>
+          </li>
+          <li class="journey-node">
+            <span class="journey-node__num" aria-hidden="true">5</span>
+            <div class="journey-node__art"><img src="/assets/img/step-5-build.svg" alt="" width="220" height="150" loading="lazy"></div>
+            <h3 class="journey-node__title">Build</h3>
+            <p class="journey-node__text">Suitable students join a project and develop a solution together.</p>
+          </li>
+          <li class="journey-node">
+            <span class="journey-node__num" aria-hidden="true">6</span>
+            <div class="journey-node__art"><img src="/assets/img/step-6-measure.svg" alt="" width="220" height="150" loading="lazy"></div>
+            <h3 class="journey-node__title">Measure</h3>
+            <p class="journey-node__text">Evidence and outcomes are documented and reviewed.</p>
+          </li>
         </ol>
-        <div style="margin-top:var(--space-6)">
+
+        <div style="margin-top:var(--space-6);text-align:center">
           <a class="btn btn--secondary" href="/how-it-works.html">Read the full process &amp; limitations</a>
         </div>
       </div>
     </section>
 
-    <!-- Featured approved problems -->
-    <section class="band band--soft">
+    <!-- =====================================================================
+         SECTION D — Solution discovery
+         ===================================================================== -->
+    <section class="band" id="solutions">
+      <div class="container solution-split">
+        <div>
+          <span class="eyebrow">Look before you build</span>
+          <h2>Discover solutions that already exist</h2>
+          <p class="lead">
+            Before a team builds something new, SamadhanSetu looks through this platform's own
+            solution repository and suggests what might be reused or adapted.
+          </p>
+          <p class="muted" style="font-size:var(--fs-caption)">
+            Recommendations are search signals, not verdicts. A mentor verifies suitability,
+            licensing and safety — and the platform never claims to search the wider web.
+          </p>
+          <div class="recommend-list" style="margin-top:var(--space-5)">
+            <div class="recommend">
+              <span class="recommend__tag recommend__tag--reuse">Reuse</span>
+              <div>
+                <p class="recommend__title">A proven approach already fits</p>
+                <p class="recommend__text">Shown only when an existing entry genuinely matches the problem.</p>
+              </div>
+            </div>
+            <div class="recommend">
+              <span class="recommend__tag recommend__tag--adapt">Adapt</span>
+              <div>
+                <p class="recommend__title">A close match with changes needed</p>
+                <p class="recommend__text">The similarity score is a search signal — the mentor decides if it applies.</p>
+              </div>
+            </div>
+            <div class="recommend">
+              <span class="recommend__tag recommend__tag--build">Build new</span>
+              <div>
+                <p class="recommend__title">Nothing suitable — scope a project</p>
+                <p class="recommend__text">An authorised mentor scopes a project from the accepted challenge.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figure style="margin:0">
+          <img src="/assets/img/solutions-discovery.svg"
+               alt="A search across a repository of prior solutions, with reuse, adapt and build-new outcomes."
+               width="460" height="300" loading="lazy" style="width:100%;height:auto">
+        </figure>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         SECTION E — Student innovation preview
+         ===================================================================== -->
+    <section class="band band--soft" id="students">
       <div class="container">
         <div class="section-head">
-          <span class="eyebrow">Open for student innovation</span>
-          <h2>Approved problems</h2>
-          <p class="lead">Problems a human reviewer cleared for a student team to work on.</p>
+          <span class="eyebrow">For students</span>
+          <h2>From an approved challenge to a working team</h2>
+          <p class="lead">Projects you can join explain the skills they need, how they match yours, who
+            mentors them, and how many places are open.</p>
         </div>
-        <div class="grid grid--3" id="featured-challenges" aria-live="polite">
-          <div class="card"><div class="skeleton skeleton--text"></div></div>
-          <div class="card"><div class="skeleton skeleton--text"></div></div>
-          <div class="card"><div class="skeleton skeleton--text"></div></div>
-        </div>
-        <div style="margin-top:var(--space-6)">
-          <a class="btn btn--ghost" href="/challenges.html">See all approved problems →</a>
+
+        <div class="preview-frame">
+          <div class="preview-frame__bar">
+            <span class="preview-frame__dot"></span><span class="preview-frame__dot"></span><span class="preview-frame__dot"></span>
+            <span class="preview-frame__title">Student dashboard · <strong>interface preview</strong></span>
+          </div>
+          <div class="preview-frame__body">
+            <div>
+              <p class="preview-note" style="margin-bottom:var(--space-3)">
+                <span class="badge badge--info">Projects you can join</span>
+                A preview of the real interface — not live user data.
+              </p>
+              <div class="preview-project">
+                <div>
+                  <p class="recommend__title">Adaptive street-lighting retrofit for a bus-depot road</p>
+                  <p class="recommend__text">Required: electronics, embedded C, field survey</p>
+                  <div class="preview-project__skills">
+                    <span class="preview-skill">Embedded C</span>
+                    <span class="preview-skill">Electronics</span>
+                    <span class="preview-skill">Field survey</span>
+                  </div>
+                </div>
+                <div style="text-align:right">
+                  <span class="badge badge--success">Strong match 82%</span>
+                  <div class="match-bar" aria-hidden="true"><span style="width:82%"></span></div>
+                  <p class="recommend__text" style="margin-top:6px">You have 3 of 3 required skills.</p>
+                </div>
+              </div>
+              <div class="preview-project" style="margin-top:var(--space-3)">
+                <div>
+                  <p class="recommend__title">Solar-powered safe-water point for a village school</p>
+                  <p class="recommend__text">Required: mechanical design, water testing</p>
+                  <div class="preview-project__skills">
+                    <span class="preview-skill">Mechanical design</span>
+                    <span class="preview-skill">Water testing</span>
+                  </div>
+                </div>
+                <div style="text-align:right">
+                  <span class="badge badge--warning">Partial match 54%</span>
+                  <div class="match-bar" aria-hidden="true"><span style="width:54%;background:var(--color-warning)"></span></div>
+                  <p class="recommend__text" style="margin-top:6px">1 of 2 required skills.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="preview-mini-grid">
+              <div class="preview-mini"><div class="preview-mini__value">2</div><div class="preview-mini__label">Applications in review</div></div>
+              <div class="preview-mini"><div class="preview-mini__value">1</div><div class="preview-mini__label">Invitation to accept</div></div>
+              <div class="preview-mini"><div class="preview-mini__value">4</div><div class="preview-mini__label">Open tasks this week</div></div>
+              <div class="preview-mini"><div class="preview-mini__value">1</div><div class="preview-mini__label">Milestone due</div></div>
+            </div>
+
+            <p class="preview-note">
+              <span aria-hidden="true">🎓</span>
+              Apply to join → the mentor reviews applications → you accept an invitation → your team
+              workspace opens.
+            </p>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Trust / honesty -->
-    <section class="band band--dark">
-      <div class="container split">
+    <!-- =====================================================================
+         SECTION F — Final call to action
+         ===================================================================== -->
+    <section class="cta-warm">
+      <div class="container container--wide cta-warm__inner">
         <div>
-          <span class="eyebrow">Built honestly</span>
-          <h2>What this platform does — and does not — claim</h2>
-          <p class="lead">
-            This is a working demonstration. It is careful about what it says it can do.
+          <span class="eyebrow">Start here</span>
+          <h2>Every meaningful solution starts with understanding the problem.</h2>
+          <p class="lead" style="color:var(--color-body)">
+            Share a community problem, explore existing ideas, or help build a practical solution with
+            a student team.
           </p>
+          <div class="btn-group" style="margin-top:var(--space-5)">
+            <a class="btn btn--primary btn--pill btn--lg" href="/submit.html">Report a Problem</a>
+            <a class="btn btn--secondary btn--pill btn--lg" href="/projects.html">Explore Projects</a>
+          </div>
         </div>
-        <div>
-          <ul class="feature-list">
-            <li><span class="tick" aria-hidden="true">✓</span><span><strong>AI assists, humans decide.</strong> Screening produces a recommendation; the authoritative record is a human review with a written reason.</span></li>
-            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Deterministic matching.</strong> Student matching uses transparent weighted criteria you can inspect — not a black box.</span></li>
-            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Honest search scope.</strong> Prior-solution search reads only this deployment's internal repository; it does not search the web.</span></li>
-            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Labelled demo data.</strong> Every seeded statistic, score and sponsorship carries a visible <span class="tag-demo">Demo data</span> tag.</span></li>
-            <li><span class="tick" aria-hidden="true">✓</span><span><strong>Limitations stated.</strong> Impact reports record what was and was not verified, including tests still pending.</span></li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="band">
-      <div class="container section-head section-head--center">
-        <h2>Which side of the bridge are you on?</h2>
-        <p class="lead">Report a problem, or help solve one. Both start with an account.</p>
-        <div class="btn-group" style="justify-content:center;margin-top:var(--space-5)">
-          <a class="btn btn--primary btn--pill btn--lg" href="/register.html">Create an account</a>
-          <a class="btn btn--secondary btn--pill btn--lg" href="/login.html">Sign in</a>
-        </div>
+        <figure class="cta-warm__art" style="margin:0">
+          <img src="/assets/img/cta-community.svg"
+               alt="Citizens, students and a mentor standing together around a community map."
+               width="520" height="360" loading="lazy">
+        </figure>
       </div>
     </section>
   </main>
@@ -142,50 +340,159 @@
   <script src="/assets/js/app.js"></script>
   <script>
     (function () {
-      function goSearch() {
-        var q = UI.qs("#hero-search").value.trim();
-        window.location.href = "/challenges.html" + (q ? "?q=" + encodeURIComponent(q) : "");
+      "use strict";
+
+      var OVERVIEW = null;
+      var domainFilter = "";
+
+      var DOMAIN_ICON = {
+        water: "🚰", agriculture: "🌾", environment: "🌫️", waste: "♻️",
+        transport: "🚌", education: "🎓", health: "🩺", electricity: "💡",
+        safety: "🛡️", accessibility: "♿", other: "🏘️",
+      };
+
+      function icon(category) { return DOMAIN_ICON[category] || "✳️"; }
+
+      // ---- metrics + chart ---------------------------------------------------
+
+      function renderMetrics(data) {
+        var s = data.stats || {};
+        var cards = [
+          { key: "problems_reported", label: "Problems reported", accent: false },
+          { key: "unique_clusters", label: "Unique problem clusters", accent: false },
+          { key: "awaiting_review", label: "Awaiting review", accent: false },
+          { key: "projects_started", label: "Projects started", accent: true },
+          { key: "projects_completed", label: "Projects completed", accent: true },
+        ];
+        var host = UI.qs("#intel-metrics");
+        host.innerHTML = cards.map(function (c) {
+          var hint = c.key === "unique_clusters"
+            ? '<div class="metric-card__hint">Grouped related reports</div>'
+            : (c.key === "awaiting_review" ? '<div class="metric-card__hint">Needs a human decision</div>' : "");
+          return '<div class="metric-card' + (c.accent ? " metric-card--accent" : "") + '">' +
+            '<div class="metric-card__value">' + (s[c.key] || 0) + "</div>" +
+            '<div class="metric-card__label">' + c.label + "</div>" + hint + "</div>";
+        }).join("");
+
+        UI.qs("#intel-note").textContent = data.note || "";
+        if (data.demo_data) {
+          UI.qs("#intel-source").innerHTML = UI.demoTag(true) + " seeded data included";
+        } else {
+          UI.qs("#intel-source").textContent = "No records yet";
+        }
       }
-      UI.qs("#hero-search-btn").addEventListener("click", goSearch);
-      UI.qs("#hero-search").addEventListener("keydown", function (e) {
-        if (e.key === "Enter") { e.preventDefault(); goSearch(); }
-      });
+
+      function renderChart(data) {
+        var host = UI.qs("#intel-chart");
+        var rows = (data.by_domain || []).filter(function (d) { return d.count > 0; });
+        if (!rows.length) {
+          host.innerHTML = UI.emptyState("📊", "No problems recorded yet",
+            "As soon as a citizen reports a problem, the domain breakdown appears here.");
+          return;
+        }
+        host.innerHTML = UI.breakdown(rows.slice(0, 8).map(function (d) {
+          return { label: d.label, value: d.count };
+        }), { emptyText: "No domain data yet." });
+      }
+
+      function renderPipeline(data) {
+        var s = data.stats || {};
+        var host = UI.qs("#intel-pipeline");
+        host.innerHTML = UI.donut([
+          { label: "Awaiting review", value: s.awaiting_review || 0, variant: "warning" },
+          { label: "Approved for students", value: s.approved_challenges || 0, variant: "success" },
+          { label: "Verified impact", value: s.verified_impact || 0, variant: "info" },
+        ], { emptyText: "Nothing in the pipeline yet.", totalLabel: "reports", title: "Pipeline" });
+      }
+
+      // ---- problem cards -----------------------------------------------------
+
+      function filteredProblems() {
+        if (!OVERVIEW) return [];
+        var terms = (UI.qs("#city-search").value || "").trim().toLowerCase();
+        return OVERVIEW.problems.filter(function (p) {
+          if (domainFilter && p.category !== domainFilter) return false;
+          if (!terms) return true;
+          var hay = [p.title, p.city, p.locality].filter(Boolean).join(" ").toLowerCase();
+          return hay.indexOf(terms) !== -1;
+        });
+      }
+
+      function renderProblems() {
+        var host = UI.qs("#problem-grid");
+        var items = filteredProblems();
+        if (!items.length) {
+          host.className = "";
+          host.innerHTML = UI.emptyState("🔎", "No problems match that filter",
+            OVERVIEW && OVERVIEW.problems.length
+              ? "Try a different domain or clear the city search."
+              : "No problems have been approved for student innovation yet. Approved problems will appear here.",
+            '<a class="btn btn--primary btn--pill" href="/submit.html">Report a Problem</a>');
+          return;
+        }
+        host.className = "loading-cards";
+        host.innerHTML = items.map(function (p) {
+          var loc = [p.locality, p.city].filter(Boolean).join(", ");
+          var related = p.related_reports > 1
+            ? '<span class="chip" style="pointer-events:none">🔗 ' + p.related_reports + " related reports</span>"
+            : "";
+          var evidence = p.has_evidence
+            ? '<span class="chip" style="pointer-events:none">📷 Evidence</span>' : "";
+          return '<a class="problem-card" href="/challenge.html?id=' + p.id + '">' +
+            '<span class="problem-card__thumb problem-card__thumb--' + UI.esc(p.category) + '" aria-hidden="true">' +
+              icon(p.category) + "</span>" +
+            '<span class="problem-card__body">' +
+              '<span class="problem-card__meta">' + UI.badge(p.status) +
+                '<span class="chip" style="pointer-events:none">' + UI.esc(UI.domainLabel(p.category)) + "</span></span>" +
+              '<h3 class="problem-card__title">' + UI.esc(p.title) + "</h3>" +
+              '<p class="problem-card__summary">' + UI.esc(p.summary || "") + "</p>" +
+              '<span class="problem-card__foot">' +
+                "<span>" + (loc ? "📍 " + UI.esc(loc) + " · " : "") + UI.fmtDate(p.created_at) + "</span>" +
+                '<span class="problem-card__go">View problem →</span>' +
+              "</span>" +
+              (related || evidence ? '<span class="problem-card__meta">' + related + evidence + "</span>" : "") +
+            "</span></a>";
+        }).join("");
+      }
+
+      function renderDomainFilter() {
+        var host = UI.qs("#domain-filter");
+        var rows = (OVERVIEW.by_domain || []).filter(function (d) { return d.count > 0; });
+        var html = '<button type="button" class="category-chip is-active" data-key="">All domains</button>';
+        html += rows.map(function (d) {
+          return '<button type="button" class="category-chip" data-key="' + UI.esc(d.key) + '">' +
+            icon(d.key) + " " + UI.esc(d.label) + "</button>";
+        }).join("");
+        host.innerHTML = html;
+        UI.qsa(".category-chip", host).forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            domainFilter = btn.dataset.key;
+            UI.qsa(".category-chip", host).forEach(function (b) {
+              b.classList.toggle("is-active", b === btn);
+            });
+            renderProblems();
+          });
+        });
+      }
+
+      // ---- boot --------------------------------------------------------------
+
+      UI.qs("#city-search").addEventListener("input", UI.debounce(renderProblems, 250));
 
       App.ready.then(async function () {
-        // Featured problems
         try {
-          var res = await API.get("/api/challenges", { page: 1, page_size: 3 });
-          var host = UI.qs("#featured-challenges");
-          if (!res.items.length) {
-            host.innerHTML = UI.emptyState("🌱", "No approved problems yet", "Approved problems will appear here once a reviewer clears them.");
-            return;
-          }
-          host.innerHTML = res.items.map(function (c) {
-            return '<a class="card card--hover card--link" href="/challenge.html?id=' + c.id + '">' +
-              '<div class="card__header">' + UI.badge(c.status) +
-              '<span class="chip" style="pointer-events:none">' + UI.esc(UI.titleCase(c.category)) + '</span></div>' +
-              '<h3 class="card__title">' + UI.esc(c.title) + '</h3>' +
-              '<p class="card__body">' + UI.esc((c.description || "").slice(0, 150)) + '…</p>' +
-              '<div class="card__footer muted" style="font-size:var(--fs-fine)">' +
-              (c.location ? "📍 " + UI.esc(c.location) + " · " : "") + UI.fmtDate(c.created_at) + '</div>' +
-              '</a>';
-          }).join("");
+          OVERVIEW = await API.get("/api/public/overview", { limit: 12 });
+          renderMetrics(OVERVIEW);
+          renderChart(OVERVIEW);
+          renderPipeline(OVERVIEW);
+          renderDomainFilter();
+          renderProblems();
         } catch (e) {
-          UI.qs("#featured-challenges").innerHTML = UI.errorState(e.message);
+          UI.qs("#intel-metrics").innerHTML = UI.errorState(e.message);
+          UI.qs("#intel-chart").innerHTML = UI.errorState(e.message);
+          UI.qs("#problem-grid").className = "";
+          UI.qs("#problem-grid").innerHTML = UI.errorState(e.message);
         }
-
-        // Stats
-        try {
-          var stats = await API.get("/api/public/stats").catch(function () { return null; });
-          var host = UI.qs("#home-stats");
-          var values = [
-            stats ? stats.approved_challenges : "—",
-            stats ? stats.active_projects : "—",
-            stats ? stats.universities : "—",
-            stats ? stats.verified_impact : "—",
-          ];
-          UI.qsa(".stat__value", host).forEach(function (el, i) { el.textContent = values[i]; });
-        } catch (e) { /* leave dashes */ }
       });
     })();
   </script>

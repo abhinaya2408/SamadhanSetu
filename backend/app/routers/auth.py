@@ -8,6 +8,7 @@ from ..config import settings
 from ..core import security
 from ..dependencies import CurrentUser, CsrfDep, DbDep, OptionalUser
 from ..models import (
+    Capability,
     Company,
     Department,
     FacultyProfile,
@@ -16,7 +17,15 @@ from ..models import (
     University,
     User,
 )
-from ..schemas import LoginIn, MessageOut, RegisterIn, UserOut
+from ..schemas import (
+    LoginIn,
+    MessageOut,
+    RegisterIn,
+    StudentProfileOut,
+    StudentProfilePatch,
+    UserOut,
+    UserPatch,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -45,11 +54,21 @@ def register(payload: RegisterIn, db: DbDep, response: Response, request: Reques
             status_code=403,
             detail="Platform administrator accounts are provisioned by the operators, not by public registration.")
 
+    # One combined role: the two legacy options both resolve to University & Faculty.
+    role = payload.role
+    if role in {Role.FACULTY, Role.UNIVERSITY_ADMIN}:
+        role = Role.UNIVERSITY_FACULTY
+
+    capabilities = None
+    if role == Role.UNIVERSITY_FACULTY:
+        capabilities = ",".join(sorted(Capability.DEFAULT_COORDINATOR))
+
     user = User(
         email=email,
         password_hash=security.hash_password(payload.password),
         full_name=payload.full_name.strip(),
-        role=payload.role,
+        role=role,
+        capabilities=capabilities,
         is_verified=False,
     )
     db.add(user)
@@ -65,12 +84,14 @@ def register(payload: RegisterIn, db: DbDep, response: Response, request: Reques
             university_id=payload.university_id,
             department_id=payload.department_id,
         ))
-    elif payload.role == Role.FACULTY:
+    elif role == Role.UNIVERSITY_FACULTY:
+        if not payload.university_id:
+            raise HTTPException(status_code=400, detail="Select the university you are part of.")
         db.add(FacultyProfile(
             user_id=user.id,
             university_id=payload.university_id,
             department_id=payload.department_id,
-            title=payload.faculty_title,
+            title=payload.faculty_title or "Faculty",
         ))
     elif payload.role == Role.COMPANY:
         name = (payload.company_name or "").strip()
@@ -82,11 +103,6 @@ def register(payload: RegisterIn, db: DbDep, response: Response, request: Reques
             industry=payload.company_industry,
             website=payload.company_website,
         ))
-    elif payload.role == Role.UNIVERSITY_ADMIN:
-        if not payload.university_id:
-            raise HTTPException(status_code=400, detail="Select the university you administer.")
-        db.add(FacultyProfile(user_id=user.id, university_id=payload.university_id, title="Administrator"))
-
     db.commit()
     db.refresh(user)
 
@@ -128,5 +144,53 @@ def me_optional(user: OptionalUser):
     return _user_out(user)
 
 
+@router.patch("/me", response_model=UserOut)
+def update_me(payload: UserPatch, db: DbDep, user: CurrentUser, csrf: CsrfDep):
+    """Update the signed-in user's own basic details."""
+    data = payload.model_dump(exclude_unset=True)
+    for key, value in data.items():
+        setattr(user, key, value)
+    db.commit()
+    db.refresh(user)
+    return _user_out(user)
+
+
+@router.get("/me/profile")
+def my_profile(db: DbDep, user: CurrentUser):
+    """The signed-in user's role profile (student skills, faculty title)."""
+    _ = db
+    if user.student_profile:
+        return {"kind": "student", "student": StudentProfileOut.model_validate(user.student_profile).model_dump()}
+    if user.faculty_profile:
+        return {"kind": "university_faculty",
+                "title": user.faculty_profile.title,
+                "university_id": user.faculty_profile.university_id,
+                "department_id": user.faculty_profile.department_id,
+                "is_approved": user.faculty_profile.is_approved}
+    return {"kind": user.role}
+
+
+@router.patch("/me/profile", response_model=StudentProfileOut)
+def update_my_profile(payload: StudentProfilePatch, db: DbDep, user: CurrentUser, csrf: CsrfDep):
+    """A student updates their own skills and availability — this feeds matching."""
+    profile = user.student_profile
+    if profile is None:
+        raise HTTPException(status_code=403, detail="Only student accounts have an editable student profile.")
+    if payload.university_id and not db.get(University, payload.university_id):
+        raise HTTPException(status_code=400, detail="Unknown university.")
+    if payload.department_id and not db.get(Department, payload.department_id):
+        raise HTTPException(status_code=400, detail="Unknown department.")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(profile, key, value)
+    db.commit()
+    db.refresh(profile)
+    return StudentProfileOut.model_validate(profile)
+
+
 def _user_out(user: User) -> UserOut:
-    return UserOut.model_validate(user)
+    out = UserOut.model_validate(user)
+    # Never send an empty capability list for a University & Faculty account.
+    if not out.capabilities and user.role in Role.UNIVERSITY_ROLES:
+        from ..core.permissions import capabilities_of
+        out.capabilities = sorted(capabilities_of(user))
+    return out

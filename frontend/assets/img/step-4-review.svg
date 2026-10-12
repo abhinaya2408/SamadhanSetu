@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 150" role="img" aria-label="A faculty mentor reviews and approves the challenge" width="220" height="150">
+  <rect width="220" height="150" rx="16" fill="#fdf6f0"/>
+  <!-- desk -->
+  <rect x="0" y="116" width="220" height="34" fill="#efece8"/>
+  <!-- review card -->
+  <g transform="translate(88,20)">
+    <rect x="0" y="0" width="112" height="88" rx="10" fill="#ffffff" stroke="#e6e3df"/>
+    <rect x="12" y="14" width="60" height="8" rx="4" fill="#d6d0c9"/>
+    <rect x="12" y="30" width="88" height="6" rx="3" fill="#e6e3df"/>
+    <rect x="12" y="42" width="88" height="6" rx="3" fill="#e6e3df"/>
+    <rect x="12" y="54" width="52" height="6" rx="3" fill="#e6e3df"/>
+    <g stroke="#1f7a4d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M80 68 l8 9 18 -22"/>
+    </g>
+    <circle cx="94" cy="20" r="10" fill="#e8f5ee"/>
+    <path d="M90 20 l3 4 6 -8" stroke="#1f7a4d" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- mentor -->
+  <g transform="translate(28,44)">
+    <ellipse cx="26" cy="72" rx="26" ry="7" fill="#000" opacity="0.07"/>
+    <rect x="14" y="48" width="11" height="24" rx="5" fill="#3f4b66"/>
+    <rect x="27" y="48" width="11" height="24" rx="5" fill="#35405a"/>
+    <path d="M8 16 q18 -11 36 0 l6 34 q-24 9 -48 0 Z" fill="#f7f6f4" stroke="#dcd7d1"/>
+    <path d="M28 18 l6 32 q-9 3 -18 3 l-4 -32 Z" fill="#e4573d" opacity="0.9"/>
+    <path d="M40 26 q16 2 22 -6" stroke="#e0ac69" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <circle cx="26" cy="2" r="16" fill="#e0ac69"/>
+    <path d="M10 -2 q5 -17 30 -14 q9 1 9 13 q-6 -7 -17 -6 q-13 1 -22 7 Z" fill="#4a4a4a"/>
+    <g stroke="#1d1d1f" stroke-width="2" fill="none">
+      <circle cx="20" cy="2" r="5"/><circle cx="33" cy="2" r="5"/><path d="M25 2 h3"/>
+    </g>
+  </g>
+</svg>

@@ -106,7 +106,50 @@ def migrate_additive() -> list[str]:  # noqa: C901 - a short, linear sequence of
                 applied.append(f"index-skipped:{index.name}:{exc.__class__.__name__}")
 
     applied.extend(_backfill_city_keys())
+    applied.extend(_migrate_university_faculty_role())
     return applied
+
+
+def _migrate_university_faculty_role() -> list[str]:
+    """Fold the old ``faculty`` / ``university_admin`` roles into ONE combined role.
+
+    This is a data migration, not a destructive one: every user row is preserved,
+    and the capabilities each account already effectively had are written onto the
+    row so nothing changes about what a person can do. It is idempotent — a second
+    run finds nothing to change.
+    """
+    from sqlalchemy import inspect, text as sql_text
+
+    from .models import Capability, Role
+
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return []
+    columns = {c["name"] for c in inspector.get_columns("users")}
+    if "capabilities" not in columns:
+        return []
+
+    defaults = {
+        Role.FACULTY: ",".join(sorted(Capability.DEFAULT_REVIEWER)),
+        Role.UNIVERSITY_ADMIN: ",".join(sorted(Capability.DEFAULT_COORDINATOR)),
+    }
+
+    changes: list[str] = []
+    with engine.connect() as conn:
+        rows = conn.execute(sql_text(
+            "SELECT id, role, COALESCE(capabilities, '') FROM users WHERE role IN ('faculty', 'university_admin')"
+        )).fetchall()
+    if not rows:
+        return []
+
+    with engine.begin() as conn:
+        for user_id, old_role, existing_caps in rows:
+            caps = (existing_caps or "").strip() or defaults.get(old_role, "")
+            conn.execute(
+                sql_text("UPDATE users SET role = :new_role, capabilities = :caps WHERE id = :id"),
+                {"new_role": Role.UNIVERSITY_FACULTY, "caps": caps, "id": user_id})
+            changes.append(f"user {user_id}: {old_role} -> {Role.UNIVERSITY_FACULTY}")
+    return [f"merged {len(changes)} accounts into the University & Faculty role"]
 
 
 def _backfill_city_keys() -> list[str]:

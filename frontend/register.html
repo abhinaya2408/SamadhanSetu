@@ -38,8 +38,7 @@
               <select class="select" id="role" name="role">
                 <option value="citizen">Citizen — report a problem</option>
                 <option value="student">Student</option>
-                <option value="faculty">Faculty / mentor</option>
-                <option value="university_admin">University administrator</option>
+                <option value="university_faculty">University &amp; Faculty — review and mentor</option>
                 <option value="company">Company / sponsor</option>
               </select>
             </div>
@@ -93,14 +92,12 @@
       function renderRoleFields() {
         var role = UI.qs("#role").value;
         var host = UI.qs("#role-fields");
-        if (role === "student" || role === "faculty" || role === "university_admin") {
+        if (role === "student" || role === "university_faculty") {
           host.innerHTML = UI.field("university_id", "University", { type: "select", options: [{ value: "", label: "Select a university" }].concat(uniOptions()) }) +
-            (role !== "university_admin" ? UI.field("department_id", "Department", { type: "select", options: [{ value: "", label: "Select a department" }] }) : "") +
-            (role === "faculty" ? UI.field("faculty_title", "Academic title", { placeholder: "e.g. Associate Professor" }) : "");
-          if (role === "student" || role === "faculty") {
-            var uniSel = UI.qs('[name="university_id"]');
-            if (uniSel) uniSel.addEventListener("change", loadDepartments);
-          }
+            UI.field("department_id", "Department", { type: "select", options: [{ value: "", label: "Select a department" }] }) +
+            UI.field("faculty_title", "Role at the university", { placeholder: "e.g. Associate Professor, Reviewer, Coordinator" });
+          var uniSel = UI.qs('[name="university_id"]');
+          if (uniSel) uniSel.addEventListener("change", loadDepartments);
         } else if (role === "company") {
           host.innerHTML = UI.field("company_name", "Company name", { required: true }) +
             UI.field("company_industry", "Industry") +

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 150" role="img" aria-label="A map shows similar reports grouped together nearby" width="220" height="150">
+  <rect width="220" height="150" rx="16" fill="#fdf6f0"/>
+  <!-- map panel -->
+  <rect x="22" y="18" width="176" height="114" rx="12" fill="#ffffff" stroke="#e6e3df"/>
+  <!-- map streets -->
+  <g stroke="#eee9e3" stroke-width="9" stroke-linecap="round">
+    <path d="M40 56 H180"/><path d="M40 92 H180"/><path d="M76 32 V118"/><path d="M124 32 V118"/><path d="M164 32 V118"/>
+  </g>
+  <!-- river -->
+  <path d="M32 118 q30 -22 52 0 q24 22 48 -4" stroke="#9ec1e0" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.8"/>
+  <!-- cluster halo -->
+  <circle cx="86" cy="72" r="34" fill="#e4573d" opacity="0.12"/>
+  <circle cx="86" cy="72" r="22" fill="#e4573d" opacity="0.16"/>
+  <!-- pins -->
+  <g>
+    <path d="M86 50 a12 12 0 0 1 12 12 c0 8 -12 22 -12 22 s-12 -14 -12 -22 a12 12 0 0 1 12 -12 Z" fill="#e4573d"/>
+    <circle cx="86" cy="62" r="4.5" fill="#fff"/>
+    <path d="M72 74 a10 10 0 0 1 10 10 c0 7 -10 18 -10 18 s-10 -11 -10 -18 a10 10 0 0 1 10 -10 Z" fill="#f08a6f"/>
+    <circle cx="72" cy="84" r="3.5" fill="#fff"/>
+    <path d="M102 76 a10 10 0 0 1 10 10 c0 7 -10 18 -10 18 s-10 -11 -10 -18 a10 10 0 0 1 10 -10 Z" fill="#c8462f"/>
+    <circle cx="112" cy="86" r="3.5" fill="#fff"/>
+  </g>
+  <!-- grouped label -->
+  <rect x="132" y="42" width="56" height="24" rx="12" fill="#1d1d1f"/>
+  <text x="160" y="58" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#ffffff">Grouped</text>
+  <path d="M136 60 l-8 8" stroke="#1d1d1f" stroke-width="3" stroke-linecap="round"/>
+</svg>

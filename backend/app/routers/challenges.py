@@ -398,7 +398,7 @@ def list_challenges(
         if not user:
             raise HTTPException(status_code=401, detail="Sign in to view your submissions.")
         q = q.filter(Challenge.citizen_id == user.id)
-    elif user and user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}:
+    elif user and user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
         pass
     else:
         q = q.filter(Challenge.status.in_(
@@ -501,7 +501,7 @@ def _can_see_attachments(db, user, challenge: Challenge) -> bool:
         return False
     if user.id == challenge.citizen_id:
         return True
-    if user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}:
+    if user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
         return True
     project = challenge.project
     if project is not None:
@@ -708,7 +708,7 @@ def get_challenge(challenge_id: int, db: DbDep, user: OptionalUser = None):
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    privileged = bool(user and user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN})
+    privileged = bool(user and user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES})
     is_owner = bool(user and user.id == c.citizen_id)
     if c.status in ChallengeStatus.BLOCKED and not (privileged or is_owner):
         raise HTTPException(status_code=404, detail="Challenge not found.")
@@ -724,7 +724,7 @@ def rescreen(challenge_id: int, db: DbDep, user: CurrentUser, csrf: CsrfDep,
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    if not (c.citizen_id == user.id or user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}):
+    if not (c.citizen_id == user.id or user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES}):
         raise HTTPException(status_code=403, detail="You cannot screen this challenge.")
     s = screening_service.screen_challenge(db, c, use_ai=use_ai)
     audit.log(db, user, "challenge.screened", target_type="challenge", target_id=c.id,
@@ -738,7 +738,7 @@ def screening_history(challenge_id: int, db: DbDep, user: OptionalUser = None):
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    privileged = bool(user and user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN})
+    privileged = bool(user and user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES})
     if not (privileged or (user and user.id == c.citizen_id)):
         raise HTTPException(status_code=403, detail="Not permitted.")
     rows = (
@@ -759,7 +759,7 @@ def list_corrections(challenge_id: int, db: DbDep, user: OptionalUser = None):
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    privileged = bool(user and user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN})
+    privileged = bool(user and user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES})
     if not (privileged or (user and user.id == c.citizen_id)):
         raise HTTPException(status_code=403, detail="Not permitted.")
     rows = (
@@ -787,7 +787,7 @@ def correct_screening(challenge_id: int, payload: ScreeningCorrectionIn, db: DbD
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    privileged = user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}
+    privileged = user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES}
     if not (privileged or c.citizen_id == user.id):
         raise HTTPException(status_code=403, detail="You cannot correct this summary.")
     if payload.field not in CORRECTABLE_FIELDS:
@@ -889,7 +889,7 @@ def challenge_reviews(challenge_id: int, db: DbDep, user: OptionalUser = None):
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    privileged = bool(user and user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN})
+    privileged = bool(user and user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES})
     if not (privileged or (user and user.id == c.citizen_id)):
         raise HTTPException(status_code=403, detail="Not permitted.")
     rows = (
@@ -962,7 +962,7 @@ def list_clarifications(challenge_id: int, db: DbDep, user: OptionalUser = None)
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    privileged = bool(user and user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN})
+    privileged = bool(user and user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES})
     if not (privileged or (user and user.id == c.citizen_id)):
         raise HTTPException(status_code=403, detail="Not permitted.")
     rows = (
@@ -987,7 +987,7 @@ def list_clarifications(challenge_id: int, db: DbDep, user: OptionalUser = None)
 @router.post("/{challenge_id}/accept", response_model=ChallengeOut)
 def accept_challenge(challenge_id: int, db: DbDep, user: CurrentUser, csrf: CsrfDep):
     """A university accepts an approved challenge, moving it toward a project."""
-    if user.role not in {Role.UNIVERSITY_ADMIN, Role.FACULTY, Role.ADMIN}:
+    if user.role not in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
         raise HTTPException(status_code=403, detail="Only university staff can accept a challenge.")
     c = db.get(Challenge, challenge_id)
     if not c:
@@ -1069,7 +1069,7 @@ def challenge_solutions(challenge_id: int, db: DbDep, user: OptionalUser = None,
     c = db.get(Challenge, challenge_id)
     if not c:
         raise HTTPException(status_code=404, detail="Challenge not found.")
-    privileged = bool(user and user.role in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN})
+    privileged = bool(user and user.role in {Role.ADMIN, *Role.UNIVERSITY_ROLES})
     if c.status in ChallengeStatus.BLOCKED and not (privileged or (user and user.id == c.citizen_id)):
         raise HTTPException(status_code=404, detail="Challenge not found.")
     return solution_service.find_solution_matches(db, c, limit=limit, use_ai=use_ai)

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 150" role="img" aria-label="A messy description becomes a clear plain-language summary" width="220" height="150">
+  <rect width="220" height="150" rx="16" fill="#fdf6f0"/>
+  <!-- messy bubble -->
+  <g>
+    <path d="M16 24 h74 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 h-52 l-14 14 v-14 h-8 a10 10 0 0 1 -10 -10 v-34 a10 10 0 0 1 10 -10 Z" fill="#ffffff" stroke="#e6e3df"/>
+    <g stroke="#c1bcb6" stroke-width="4" stroke-linecap="round">
+      <path d="M24 38 h56"/><path d="M24 50 h48"/><path d="M24 62 h34"/>
+    </g>
+    <g stroke="#b9b1a7" stroke-width="3" stroke-linecap="round">
+      <path d="M78 38 l10 -4"/><path d="M80 50 l8 2"/>
+    </g>
+  </g>
+  <!-- arrow -->
+  <g stroke="#e4573d" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M108 62 h24"/>
+    <path d="M124 54 l8 8 -8 8"/>
+  </g>
+  <!-- clean summary card -->
+  <g>
+    <rect x="140" y="30" width="66" height="72" rx="10" fill="#ffffff" stroke="#e6e3df"/>
+    <rect x="140" y="30" width="66" height="18" rx="10" fill="#e4573d"/>
+    <rect x="140" y="40" width="66" height="8" fill="#e4573d"/>
+    <g stroke="#1f7a4d" stroke-width="4" stroke-linecap="round">
+      <path d="M150 62 h44"/><path d="M150 74 h34"/><path d="M150 86 h40"/>
+    </g>
+  </g>
+  <!-- sparkle -->
+  <g fill="#f0b429">
+    <path d="M124 22 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z"/>
+    <path d="M178 116 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/>
+  </g>
+  <!-- "AI simplifies" tag -->
+  <rect x="16" y="106" width="150" height="28" rx="14" fill="#e4573d"/>
+  <text x="94" y="125" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#ffffff">Clear, simple language</text>
+</svg>

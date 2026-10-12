@@ -53,7 +53,7 @@ def mark_all_read(db: DbDep, user: CurrentUser, csrf: CsrfDep):
 @router.post("/scan", response_model=MessageOut)
 def run_scan(db: DbDep, user: CurrentUser, csrf: CsrfDep):
     """Run the deadline scanner. Available to staff; safe to call repeatedly."""
-    if user.role not in {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}:
+    if user.role not in {Role.ADMIN, *Role.UNIVERSITY_ROLES}:
         raise HTTPException(status_code=403, detail="Only staff can trigger the deadline scan.")
     from ..services import notification_service
     result = notification_service.scan_deadlines(db)

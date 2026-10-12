@@ -17,31 +17,62 @@
   <header id="site-header"></header>
   <main id="main" class="container" style="padding-block:var(--space-7)">
     <div class="page-head">
-      <h1>Student projects</h1>
+      <span class="eyebrow">Student innovation</span>
+      <h1>Projects</h1>
       <p class="lead" id="scope-note">Projects formed from problems approved for student innovation.</p>
     </div>
 
-    <div class="filter-bar" style="margin-bottom:var(--space-6)">
-      <div class="field">
-        <label class="field__label" for="p-status">Status</label>
-        <select class="select" id="p-status">
-          <option value="">All statuses</option>
-          <option value="planning">Planning</option>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-        </select>
+    <!-- Students: projects open for recruitment -->
+    <section id="join-section" hidden style="margin-bottom:var(--space-8)">
+      <div class="section-head">
+        <span class="eyebrow">Open for recruitment</span>
+        <h2>Projects you can join</h2>
+        <p class="lead">Each project explains the skills it needs and how they line up with yours. Applying
+          does not join you automatically — a mentor reviews every application.</p>
       </div>
-      <div class="field">
-        <label class="field__label" for="p-q">Search</label>
-        <input class="input" id="p-q" type="search" placeholder="Project title…">
-      </div>
-      <div class="field" style="align-self:end">
-        <button class="btn btn--primary btn--block" id="p-apply">Apply</button>
-      </div>
-    </div>
+      <div class="grid grid--3" id="open-projects" aria-live="polite"></div>
+    </section>
 
-    <div class="grid grid--3" id="results" aria-live="polite"></div>
-    <div class="pagination" id="pager" style="margin-top:var(--space-6);justify-content:center"></div>
+    <!-- Students: my applications and invitations -->
+    <section id="myapps-section" hidden style="margin-bottom:var(--space-8)">
+      <div class="section-head">
+        <span class="eyebrow">Your progress</span>
+        <h2>Applications and invitations</h2>
+      </div>
+      <div id="my-apps"></div>
+    </section>
+
+    <!-- Everyone: the project directory -->
+    <section>
+      <div class="section-head">
+        <span class="eyebrow" id="dir-eyebrow">Directory</span>
+        <h2 id="dir-title">All projects</h2>
+        <p class="lead" id="dir-lead"></p>
+      </div>
+
+      <div class="filter-bar" style="margin-bottom:var(--space-6)">
+        <div class="field">
+          <label class="field__label" for="p-status">Status</label>
+          <select class="select" id="p-status">
+            <option value="">All statuses</option>
+            <option value="recruiting">Recruiting</option>
+            <option value="planning">Planning</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="p-q">Search</label>
+          <input class="input" id="p-q" type="search" placeholder="Project title…">
+        </div>
+        <div class="field" style="align-self:end">
+          <button class="btn btn--primary btn--block" id="p-apply">Apply</button>
+        </div>
+      </div>
+
+      <div class="grid grid--3" id="results" aria-live="polite"></div>
+      <div class="pagination" id="pager" style="margin-top:var(--space-6);justify-content:center"></div>
+    </section>
   </main>
   <footer id="site-footer"></footer>
 
@@ -50,25 +81,218 @@
   <script src="/assets/js/app.js"></script>
   <script>
     (function () {
+      "use strict";
+
       var state = { page: 1, page_size: 9, status: "", q: "" };
       var user = null;
 
-      function card(p) {
+      // ---- shared: a directory card -------------------------------------
+
+      function directoryCard(p) {
         var sponsor = user && user.role === "company"
-          ? '<button class="btn btn--soft btn--sm sponsor-btn" data-id="' + p.id + '" data-title="' + UI.esc(p.title) + '">Propose sponsorship</button>'
+          ? '<button class="btn btn--soft btn--sm sponsor-btn" data-id="' + p.id + '" data-title="' +
+            UI.esc(p.title) + '">Propose sponsorship</button>'
           : '<a class="btn btn--ghost btn--sm" href="/project.html?id=' + p.id + '">Details →</a>';
         return '<article class="card card--hover"><div class="card__header">' + UI.badge(p.status) +
-          (p.difficulty ? '<span class="chip" style="pointer-events:none">' + UI.esc(UI.titleCase(p.difficulty)) + "</span>" : "") +
-          '</div><h3 class="card__title">' + UI.esc(p.title) + "</h3>" +
+          (p.difficulty ? '<span class="chip" style="pointer-events:none">' +
+            UI.esc(UI.titleCase(p.difficulty)) + "</span>" : "") +
+          "</div><h3 class=\"card__title\">" + UI.esc(p.title) + "</h3>" +
           '<p class="card__body">' + UI.esc((p.problem_statement || "").slice(0, 140)) + "…</p>" +
           '<div class="card__footer" style="flex-direction:column;align-items:stretch;gap:var(--space-3)">' +
           '<div class="muted" style="font-size:var(--fs-fine)">' + UI.esc(p.university_name || "University not set") +
           " · " + p.member_count + " members" + (p.deadline ? " · due " + UI.fmtDate(p.deadline) : "") + "</div>" +
           '<div class="chip-row"><span class="badge badge--neutral">Progress ' + p.progress_pct + "%</span>" +
           '<span class="badge badge--neutral">' + UI.esc(p.required_skills || "skills not set") + "</span></div>" +
-          '<div class="btn-group">' + sponsor + "</div>" +
-          "</div></article>";
+          '<div class="btn-group">' + sponsor + "</div></div></article>";
       }
+
+      function statusLabel(s) {
+        return { applied: "Applied", under_review: "Under review", invited: "Invited",
+                 accepted: "Accepted", declined: "Declined", withdrawn: "Withdrawn" }[s] || UI.titleCase(s || "");
+      }
+
+      // ---- student: projects open for recruitment ------------------------
+
+      async function loadOpenProjects() {
+        var host = UI.qs("#open-projects");
+        host.innerHTML = UI.loading("Looking for projects…");
+        try {
+          var res = await API.get("/api/projects/open");
+          var items = res.items || [];
+          if (!items.length) {
+            host.className = "";
+            host.innerHTML = UI.emptyState("🌱", "No projects are open right now",
+              "When a university opens a project for recruitment it will appear here with the skills it needs.");
+            return;
+          }
+          host.className = "grid grid--3";
+          host.innerHTML = items.map(function (p) {
+            var score = p.match_score == null ? null : Math.round(p.match_score);
+            var barColour = score == null ? "var(--color-border-strong)"
+              : (score >= 70 ? "var(--color-success)" : "var(--color-warning)");
+            var skills = (p.matched_skills || []).concat(p.missing_skills || []);
+            var roleAlready = p.my_application_status;
+            var action = roleAlready
+              ? '<span class="badge badge--info">' + UI.esc(statusLabel(roleAlready)) + "</span>"
+              : (p.open_positions > 0
+                ? '<button class="btn btn--primary btn--sm apply-btn" data-id="' + p.id +
+                  '" data-title="' + UI.esc(p.title) + '">Apply to Join</button>'
+                : '<span class="badge badge--danger">Team full</span>');
+            return '<article class="card card--hover">' +
+              '<div class="card__header">' + UI.badge("recruiting") +
+                '<span class="chip" style="pointer-events:none">' + UI.esc(UI.titleCase(p.difficulty || "intermediate")) +
+                "</span></div>" +
+              '<h3 class="card__title">' + UI.esc(p.title) + "</h3>" +
+              '<p class="card__body">' + UI.esc((p.problem_statement || "").slice(0, 150)) + "…</p>" +
+              '<div class="insight insight--muted" style="margin:var(--space-3) 0">' +
+                '<p class="insight__label">Why this might suit you</p>' +
+                '<div class="insight__value">' + UI.esc(p.match_reason || "Add your skills to see a match.") + "</div>" +
+                (score != null
+                  ? '<div class="match-bar" aria-label="Skill match ' + score + '%"><span style="width:' +
+                    score + "%;background:" + barColour + '"></span></div>'
+                  : "") +
+              "</div>" +
+              '<div class="chip-row" style="margin-bottom:var(--space-3)">' +
+                skills.slice(0, 5).map(function (s) { return '<span class="preview-skill">' + UI.esc(s) + "</span>"; }).join("") +
+              "</div>" +
+              '<div class="card__footer" style="flex-direction:column;align-items:stretch;gap:var(--space-3)">' +
+                '<div class="muted" style="font-size:var(--fs-fine)">' +
+                  (p.mentor_name ? "Mentor: " + UI.esc(p.mentor_name) + " · " : "") +
+                  p.open_positions + " place" + (p.open_positions === 1 ? "" : "s") + " open" +
+                  (p.deadline ? " · due " + UI.fmtDate(p.deadline) : "") + "</div>" +
+                '<div class="btn-group">' + action +
+                  '<a class="btn btn--ghost btn--sm" href="/project.html?id=' + p.id + '">Details →</a></div>' +
+              "</div></article>";
+          }).join("");
+          UI.qsa(".apply-btn", host).forEach(function (b) {
+            b.addEventListener("click", function () { openApply(b.dataset.id, b.dataset.title); });
+          });
+        } catch (e) {
+          host.className = "";
+          host.innerHTML = UI.errorState(e.message);
+        }
+      }
+
+      function openApply(projectId, title) {
+        var modal = document.createElement("div");
+        modal.className = "modal is-open";
+        modal.innerHTML =
+          '<div class="modal__scrim" data-close></div>' +
+          '<div class="modal__panel" role="dialog" aria-modal="true" aria-label="Apply to join">' +
+          '<button class="modal__close" data-close aria-label="Close">×</button>' +
+          '<h3 class="modal__title">Apply to join</h3>' +
+          '<p class="muted">' + UI.esc(title) + "</p>" +
+          '<div class="field"><label class="field__label" for="ap-msg">Why would you like to join? ' +
+          '<span class="muted">(optional)</span></label>' +
+          '<textarea class="input" id="ap-msg" rows="3" maxlength="2000" ' +
+          'placeholder="A sentence about what you can contribute."></textarea></div>' +
+          '<p class="muted" style="font-size:var(--fs-fine)">The mentor reviews your application and your ' +
+          "skill match before inviting you. You are not on the team until you accept their invitation.</p>" +
+          '<button class="btn btn--primary btn--block" id="ap-submit">Send application</button></div>';
+        document.body.appendChild(modal);
+        function close() { modal.remove(); }
+        UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
+        modal.querySelector("#ap-submit").addEventListener("click", async function () {
+          UI.setBusy(this, true, "Sending…");
+          try {
+            await API.post("/api/projects/" + projectId + "/apply", {
+              message: modal.querySelector("#ap-msg").value.trim() || null,
+            });
+            UI.toast("Application sent. A mentor will review it.", "success");
+            close();
+            loadOpenProjects();
+            loadMyApplications();
+          } catch (e) {
+            UI.setBusy(this, false);
+            UI.toast(e.message, "error");
+          }
+        });
+      }
+
+      // ---- student: my applications and invitations ----------------------
+
+      async function loadMyApplications() {
+        var host = UI.qs("#my-apps");
+        host.innerHTML = UI.loading("Loading your applications…");
+        try {
+          var res = await API.get("/api/projects/my-applications");
+          var apps = res.applications || [];
+          var invites = res.invitations || [];
+          if (!apps.length && !invites.length) {
+            host.innerHTML = UI.emptyState("📨", "No applications yet",
+              "Apply to a project above and it will appear here with its status.");
+            return;
+          }
+          var html = "";
+          if (invites.length) {
+            html += '<h3 style="margin-bottom:var(--space-3)">Invitations to accept</h3>' +
+              '<div class="stack">' + invites.map(function (i) {
+                return '<div class="panel-plain" data-invite="' + i.member_id + '" data-project="' + i.project_id + '">' +
+                  '<div class="panel-plain__head"><h4 class="panel-plain__title">' + UI.esc(i.project_title) + "</h4>" +
+                  UI.badge("invited") + "</div>" +
+                  '<p class="muted" style="font-size:var(--fs-caption)">Role: ' + UI.esc(i.team_role || "member") +
+                  (i.mentor_name ? " · Mentor: " + UI.esc(i.mentor_name) : "") + "</p>" +
+                  (i.match_reason ? '<p class="muted" style="font-size:var(--fs-fine)">' + UI.esc(i.match_reason) + "</p>" : "") +
+                  '<div class="btn-group" style="margin-top:var(--space-3)">' +
+                    '<button class="btn btn--primary btn--sm invite-accept" data-member="' + i.member_id +
+                    '" data-project="' + i.project_id + '">Accept invitation</button>' +
+                    '<button class="btn btn--soft btn--sm invite-decline" data-member="' + i.member_id +
+                    '" data-project="' + i.project_id + '">Decline</button>' +
+                    '<a class="btn btn--ghost btn--sm" href="/project.html?id=' + i.project_id + '">Open project</a>' +
+                  "</div></div>";
+              }).join("") + "</div>";
+          }
+          if (apps.length) {
+            html += '<h3 style="margin:var(--space-5) 0 var(--space-3)">Your applications</h3>';
+            html += '<div class="table-wrap"><table class="table"><thead><tr>' +
+              "<th>Project</th><th>Status</th><th>Match</th><th>Applied</th><th></th></tr></thead><tbody>";
+            html += apps.map(function (a) {
+              return "<tr><td>" + UI.esc(a.project_title || ("Project #" + a.project_id)) + "</td>" +
+                "<td>" + UI.badge(a.status) + "</td>" +
+                "<td>" + (a.match_score == null ? "—" : Math.round(a.match_score) + "%") + "</td>" +
+                "<td>" + UI.fmtDate(a.created_at) + "</td>" +
+                '<td><a class="btn btn--ghost btn--sm" href="/project.html?id=' + a.project_id + '">Open</a></td></tr>';
+            }).join("");
+            html += "</tbody></table></div>";
+          }
+          host.innerHTML = html;
+          UI.qsa(".invite-accept").forEach(function (b) {
+            b.addEventListener("click", function () {
+              respondInvite(b.dataset.project, b.dataset.member, true, b);
+            });
+          });
+          UI.qsa(".invite-decline").forEach(function (b) {
+            b.addEventListener("click", function () {
+              respondInvite(b.dataset.project, b.dataset.member, false, b);
+            });
+          });
+        } catch (e) {
+          host.innerHTML = UI.errorState(e.message);
+        }
+      }
+
+      async function respondInvite(projectId, memberId, accept, btn) {
+        UI.setBusy(btn, true, accept ? "Accepting…" : "Declining…");
+        try {
+          await API.post("/api/projects/" + projectId + "/members/" + memberId + "/respond",
+            { accept: accept });
+          UI.toast(accept ? "Welcome to the team!" : "Invitation declined.", "success");
+          await loadMyApplications();
+          await loadOpenProjects();
+          await load();
+        } catch (e) {
+          UI.setBusy(btn, false);
+          // A student must acknowledge responsibilities before joining.
+          if (e.status === 409 && accept) {
+            UI.toast("Open the project to accept your responsibility form first.", "info", 6000);
+            window.location.href = "/project.html?id=" + projectId;
+            return;
+          }
+          UI.toast(e.message, "error");
+        }
+      }
+
+      // ---- directory -----------------------------------------------------
 
       async function load() {
         var host = UI.qs("#results");
@@ -76,7 +300,8 @@
         try {
           var res = await API.get("/api/projects", {
             page: state.page, page_size: state.page_size,
-            status: state.status || null, scope: user && user.role === "company" ? "all" : "auto",
+            status: state.status || null,
+            scope: user && user.role === "company" ? "all" : "auto",
           });
           var items = res.items || [];
           if (state.q) {
@@ -91,7 +316,7 @@
             UI.pagination(UI.qs("#pager"), 1, 1, function () {});
             return;
           }
-          host.innerHTML = items.map(card).join("");
+          host.innerHTML = items.map(directoryCard).join("");
           UI.pagination(UI.qs("#pager"), res.page, res.pages, function (p) { state.page = p; load(); });
           UI.qsa(".sponsor-btn").forEach(function (b) {
             b.addEventListener("click", function () { openSponsor(b.dataset.id, b.dataset.title); });
@@ -109,10 +334,10 @@
           '<div class="modal__panel" role="dialog" aria-modal="true" aria-label="Propose sponsorship">' +
           '<button class="modal__close" data-close aria-label="Close">×</button>' +
           '<h3 class="modal__title">Propose a sponsorship</h3>' +
-          '<p class="muted">For: ' + UI.esc(title) + '</p>' +
+          '<p class="muted">For: ' + UI.esc(title) + "</p>" +
           '<div class="field"><label class="field__label" for="sp-kind">Kind</label>' +
           '<select class="select" id="sp-kind">' +
-          ['funding', 'equipment', 'software', 'dataset', 'cloud', 'mentorship'].map(function (k) {
+          ["funding", "equipment", "software", "dataset", "cloud", "mentorship"].map(function (k) {
             return '<option value="' + k + '">' + UI.titleCase(k) + "</option>";
           }).join("") + "</select></div>" +
           '<div class="form-grid"><div class="field"><label class="field__label" for="sp-amount">Amount (optional)</label>' +
@@ -121,8 +346,7 @@
           '<input class="input" id="sp-currency" value="INR" maxlength="6"></div></div>' +
           '<div class="field"><label class="field__label" for="sp-desc">Description</label>' +
           '<textarea class="input" id="sp-desc" rows="3" placeholder="What are you offering?"></textarea></div>' +
-          '<button class="btn btn--primary btn--block" id="sp-submit">Send offer</button>' +
-          "</div>";
+          '<button class="btn btn--primary btn--block" id="sp-submit">Send offer</button></div>';
         document.body.appendChild(modal);
         function close() { modal.remove(); }
         UI.qsa("[data-close]", modal).forEach(function (el) { el.addEventListener("click", close); });
@@ -155,8 +379,23 @@
 
       App.ready.then(function (u) {
         user = u;
-        if (u && u.role === "student") UI.qs("#scope-note").textContent = "Only projects you are an active member of are shown.";
-        if (u && u.role === "company") UI.qs("#scope-note").textContent = "Active and completed projects you can support. Seeded records are labelled Demo data.";
+        if (u && u.role === "student") {
+          UI.qs("#scope-note").textContent = "Apply to open projects, then track your applications and invitations here.";
+          UI.qs("#join-section").hidden = false;
+          UI.qs("#myapps-section").hidden = false;
+          UI.qs("#dir-eyebrow").textContent = "My projects";
+          UI.qs("#dir-title").textContent = "Projects I'm part of";
+          UI.qs("#dir-lead").textContent = "Projects where you are an active team member.";
+          loadOpenProjects();
+          loadMyApplications();
+        } else if (u && u.role === "company") {
+          UI.qs("#scope-note").textContent = "Active and completed projects you can support. Seeded records are labelled Demo data.";
+          UI.qs("#dir-lead").textContent = "Projects you can sponsor.";
+        } else if (u) {
+          UI.qs("#dir-lead").textContent = "Every project this deployment is tracking.";
+        } else {
+          UI.qs("#dir-lead").textContent = "Sign in to see projects you can join or work on.";
+        }
         load();
       });
     })();

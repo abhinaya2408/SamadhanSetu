@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile — SamadhanSetu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header id="site-header"></header>
+  <main id="main" class="container container--prose" style="padding-block:var(--space-7)">
+    <div id="profile" aria-live="polite"></div>
+  </main>
+  <footer id="site-footer"></footer>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/ui.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      function render(user, profile) {
+        var host = UI.qs("#profile");
+        var caps = (user.capabilities || []);
+        var capLabels = {
+          challenge_reviewer: "Challenge reviewer",
+          project_mentor: "Project mentor",
+          university_coordinator: "University coordinator",
+        };
+
+        var html = '<div class="page-head"><span class="eyebrow">Your account</span>' +
+          "<h1>" + UI.esc(user.full_name) + "</h1>" +
+          '<p class="lead">' + UI.esc(user.email) + " · " + UI.esc(App.roleLabel(user.role)) + "</p></div>";
+
+        if (caps.length) {
+          html += '<div class="chip-row" style="margin-bottom:var(--space-6)">' +
+            caps.map(function (c) {
+              return '<span class="badge badge--info">' + UI.esc(capLabels[c] || c) + "</span>";
+            }).join("") + "</div>" +
+            '<p class="muted" style="font-size:var(--fs-fine)">One combined University &amp; Faculty login. ' +
+            "What you can do is decided by these capabilities, not by a separate role.</p>";
+        }
+
+        html += '<section class="panel card" style="margin-top:var(--space-6)">' +
+          '<div class="panel__head"><h2 class="panel__title">Basic details</h2></div>' +
+          '<div class="panel__body"><form id="basic-form" class="stack">' +
+          '<div class="field"><label class="field__label" for="p-name">Full name</label>' +
+          '<input class="input" id="p-name" value="' + UI.esc(user.full_name) + '" required maxlength="200"></div>' +
+          '<div class="field"><label class="field__label" for="p-bio">Short bio ' +
+          '<span class="muted">(optional)</span></label>' +
+          '<textarea class="input" id="p-bio" rows="3" maxlength="2000">' + UI.esc(user.bio || "") + "</textarea></div>" +
+          '<button class="btn btn--primary" type="submit">Save details</button></form></div></section>';
+
+        if (profile && profile.kind === "student") {
+          var s = profile.student || {};
+          html += '<section class="panel card" style="margin-top:var(--space-5)">' +
+            '<div class="panel__head"><h2 class="panel__title">Student profile</h2>' +
+            '<p class="panel__sub">These details power the skill match you see on projects you can join.</p></div>' +
+            '<div class="panel__body"><form id="student-form" class="stack">' +
+            '<div class="field"><label class="field__label" for="s-skills">Skills ' +
+            '<span class="muted">(comma separated)</span></label>' +
+            '<input class="input" id="s-skills" value="' + UI.esc(s.skills || "") +
+            '" placeholder="e.g. embedded systems, gis, python"></div>' +
+            '<div class="field"><label class="field__label" for="s-interests">Interests ' +
+            '<span class="muted">(comma separated)</span></label>' +
+            '<input class="input" id="s-interests" value="' + UI.esc(s.interests || "") + '"></div>' +
+            '<div class="form-grid">' +
+            '<div class="field"><label class="field__label" for="s-level">Experience level</label>' +
+            '<select class="select" id="s-level">' +
+            ["beginner", "intermediate", "advanced"].map(function (l) {
+              return '<option value="' + l + '"' + (s.experience_level === l ? " selected" : "") + ">" +
+                UI.titleCase(l) + "</option>";
+            }).join("") + "</select></div>" +
+            '<div class="field"><label class="field__label" for="s-hours">Hours available per week</label>' +
+            '<input class="input" id="s-hours" type="number" min="0" max="80" value="' +
+            (s.availability_hours == null ? 10 : s.availability_hours) + '"></div></div>' +
+            '<div class="form-grid">' +
+            '<div class="field"><label class="field__label" for="s-year">Academic year</label>' +
+            '<input class="input" id="s-year" value="' + UI.esc(s.academic_year || "") + '" maxlength="40"></div>' +
+            '<div class="field"><label class="field__label" for="s-portfolio">Portfolio URL</label>' +
+            '<input class="input" id="s-portfolio" value="' + UI.esc(s.portfolio_url || "") + '" maxlength="255"></div>' +
+            "</div>" +
+            '<button class="btn btn--primary" type="submit">Save student profile</button>' +
+            "</form></div></section>";
+        }
+
+        host.innerHTML = html;
+
+        UI.qs("#basic-form").addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var btn = this.querySelector("button");
+          UI.setBusy(btn, true, "Saving…");
+          try {
+            var updated = await API.patch("/api/auth/me", {
+              full_name: UI.qs("#p-name").value.trim(),
+              bio: UI.qs("#p-bio").value.trim(),
+            });
+            App.user = updated;
+            UI.setBusy(btn, false);
+            UI.toast("Profile saved.", "success");
+          } catch (err) {
+            UI.setBusy(btn, false);
+            UI.toast(err.message, "error");
+          }
+        });
+
+        var sf = UI.qs("#student-form");
+        if (sf) sf.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var btn = this.querySelector("button");
+          UI.setBusy(btn, true, "Saving…");
+          try {
+            await API.patch("/api/auth/me/profile", {
+              skills: UI.qs("#s-skills").value.trim(),
+              interests: UI.qs("#s-interests").value.trim(),
+              experience_level: UI.qs("#s-level").value,
+              availability_hours: parseInt(UI.qs("#s-hours").value, 10) || 0,
+              academic_year: UI.qs("#s-year").value.trim(),
+              portfolio_url: UI.qs("#s-portfolio").value.trim(),
+            });
+            UI.setBusy(btn, false);
+            UI.toast("Student profile saved. Your match scores will update.", "success");
+          } catch (err) {
+            UI.setBusy(btn, false);
+            UI.toast(err.message, "error");
+          }
+        });
+      }
+
+      App.ready.then(async function (user) {
+        if (!user) {
+          UI.qs("#profile").innerHTML = UI.emptyState("🔐", "Sign in to view your profile",
+            "Your profile holds your details and, for students, the skills used for matching.",
+            '<a class="btn btn--primary" href="/login.html?next=%2Fprofile.html">Sign in</a>');
+          return;
+        }
+        var profile = null;
+        try { profile = await API.get("/api/auth/me/profile"); } catch (e) { /* optional */ }
+        render(user, profile);
+      });
+    })();
+  </script>
+</body>
+</html>

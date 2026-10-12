@@ -40,12 +40,40 @@ def utcnow() -> dt.datetime:
 class Role:
     CITIZEN = "citizen"
     STUDENT = "student"
+    # Revision 3 merges the old separate "faculty" and "university_admin" roles into
+    # one sign-in experience: UNIVERSITY_FACULTY. The two legacy constants are kept
+    # only so existing records and sessions can still be recognised during the safe
+    # migration in database.py; new accounts never receive them.
+    UNIVERSITY_FACULTY = "university_faculty"
     FACULTY = "faculty"
     UNIVERSITY_ADMIN = "university_admin"
     COMPANY = "company"
     ADMIN = "admin"
 
-    ALL = {CITIZEN, STUDENT, FACULTY, UNIVERSITY_ADMIN, COMPANY, ADMIN}
+    ALL = {CITIZEN, STUDENT, UNIVERSITY_FACULTY, FACULTY, UNIVERSITY_ADMIN, COMPANY, ADMIN}
+    # Roles that carry university/faculty review and mentoring duties.
+    UNIVERSITY_ROLES = {UNIVERSITY_FACULTY, FACULTY, UNIVERSITY_ADMIN}
+
+
+class Capability:
+    """Fine-grained powers held *within* the combined University & Faculty role.
+
+    A merged login does not mean unrestricted access: what a user can actually do
+    is decided by these capabilities, stored per user and enforced on the backend.
+    """
+    CHALLENGE_REVIEWER = "challenge_reviewer"
+    PROJECT_MENTOR = "project_mentor"
+    UNIVERSITY_COORDINATOR = "university_coordinator"
+
+    ALL = {CHALLENGE_REVIEWER, PROJECT_MENTOR, UNIVERSITY_COORDINATOR}
+    LABELS = {
+        CHALLENGE_REVIEWER: "Challenge reviewer",
+        PROJECT_MENTOR: "Project mentor",
+        UNIVERSITY_COORDINATOR: "University coordinator",
+    }
+    # Sensible defaults per legacy role, used by the migration and the seed.
+    DEFAULT_REVIEWER = {CHALLENGE_REVIEWER, PROJECT_MENTOR}
+    DEFAULT_COORDINATOR = {CHALLENGE_REVIEWER, PROJECT_MENTOR, UNIVERSITY_COORDINATOR}
 
 
 class ChallengeStatus:
@@ -161,6 +189,9 @@ class User(Base):
     bio: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)  # org verification (university/company)
+    # Comma-separated capabilities within the combined University & Faculty role.
+    # Empty for every other role. Parsed by core.permissions.capabilities_of().
+    capabilities: Mapped[Optional[str]] = mapped_column(String(200))
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -563,8 +594,35 @@ class Project(Base):
     creator: Mapped["User"] = relationship(foreign_keys=[created_by_id])
     mentor: Mapped[Optional["User"]] = relationship(foreign_keys=[mentor_id])
     members: Mapped[list["ProjectMember"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    applications: Mapped[list["ProjectApplication"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan")
     tasks: Mapped[list["Task"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     milestones: Mapped[list["Milestone"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+
+
+class ProjectStatus:
+    """Project lifecycle. ``recruiting`` is the only state in which a project is
+    discoverable by students and accepts applications."""
+    PLANNING = "planning"
+    RECRUITING = "recruiting"
+    ACTIVE = "active"
+    ON_HOLD = "on_hold"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+    ALL = {PLANNING, RECRUITING, ACTIVE, ON_HOLD, COMPLETED, CANCELLED}
+
+
+class ApplicationStatus:
+    APPLIED = "applied"
+    UNDER_REVIEW = "under_review"
+    INVITED = "invited"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    WITHDRAWN = "withdrawn"
+
+    ALL = {APPLIED, UNDER_REVIEW, INVITED, ACCEPTED, DECLINED, WITHDRAWN}
+    OPEN = {APPLIED, UNDER_REVIEW, INVITED}   # not yet finally decided
 
 
 class ProjectMember(Base):
@@ -587,6 +645,40 @@ class ProjectMember(Base):
     approved_by: Mapped[Optional["User"]] = relationship(foreign_keys=[approved_by_id])
     responsibility_form: Mapped[Optional["ResponsibilityForm"]] = relationship(
         back_populates="member", uselist=False, cascade="all, delete-orphan")
+
+
+class ProjectApplication(Base):
+    """A student's expression of interest in an open project.
+
+    A student applies; authorised university staff review the application and may
+    invite or accept the student. AI never makes the final selection — the score
+    and reason are transparent inputs for a human decision. A unique constraint on
+    (project_id, student_id) stops duplicate applications at the database level.
+    """
+
+    __tablename__ = "project_applications"
+    __table_args__ = (
+        UniqueConstraint("project_id", "student_id", name="uq_project_application"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    message: Mapped[Optional[str]] = mapped_column(Text)          # the student's own words
+    status: Mapped[str] = mapped_column(
+        String(30), default=ApplicationStatus.APPLIED, index=True,
+        server_default=ApplicationStatus.APPLIED)
+    # Deterministic match at the moment of application (transparent, not a verdict)
+    match_score: Mapped[Optional[float]] = mapped_column(Float)
+    match_reason: Mapped[Optional[str]] = mapped_column(Text)
+    decided_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    decision_note: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    project: Mapped["Project"] = relationship(back_populates="applications")
+    student: Mapped["User"] = relationship(foreign_keys=[student_id])
+    decided_by: Mapped[Optional["User"]] = relationship(foreign_keys=[decided_by_id])
 
 
 class ResponsibilityForm(Base):

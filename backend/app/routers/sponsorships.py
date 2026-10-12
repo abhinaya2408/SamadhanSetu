@@ -24,7 +24,7 @@ from ..services import notification_service
 
 router = APIRouter(prefix="/api/sponsorships", tags=["sponsorships"])
 
-STAFF = {Role.ADMIN, Role.FACULTY, Role.UNIVERSITY_ADMIN}
+STAFF = {Role.ADMIN, *Role.UNIVERSITY_ROLES}
 
 
 def _company_of(user: User) -> Company | None:

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 150" role="img" aria-label="A student team builds a working prototype together" width="220" height="150">
+  <rect width="220" height="150" rx="16" fill="#fdf6f0"/>
+  <!-- table -->
+  <rect x="18" y="112" width="184" height="12" rx="6" fill="#c99a6b"/>
+  <rect x="28" y="124" width="10" height="26" rx="5" fill="#a97c4f"/>
+  <rect x="182" y="124" width="10" height="26" rx="5" fill="#a97c4f"/>
+  <!-- prototype on table -->
+  <g transform="translate(96,44)">
+    <rect x="10" y="40" width="8" height="30" rx="4" fill="#8b8f94"/>
+    <path d="M14 42 q0 -16 20 -16" stroke="#8b8f94" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <ellipse cx="36" cy="26" rx="12" ry="4" fill="#f0b429"/>
+    <circle cx="36" cy="23" r="8" fill="#ffd36b"/>
+    <rect x="-12" y="4" width="26" height="7" rx="3.5" fill="#2b6cb0" transform="rotate(-18 -12 8)"/>
+    <rect x="40" y="4" width="26" height="7" rx="3.5" fill="#2b6cb0" transform="rotate(18 40 8)"/>
+    <rect x="-6" y="70" width="40" height="8" rx="4" fill="#c9cdd4"/>
+    <rect x="-2" y="78" width="32" height="6" rx="3" fill="#e6e3df"/>
+  </g>
+  <!-- student 1 -->
+  <g transform="translate(24,52)">
+    <ellipse cx="24" cy="70" rx="24" ry="7" fill="#000" opacity="0.06"/>
+    <path d="M4 40 q20 -12 40 0 l6 34 q-26 10 -52 0 Z" fill="#7fb069"/>
+    <circle cx="24" cy="24" r="17" fill="#e0ac69"/>
+    <path d="M7 20 q4 -19 30 -16 q10 1 10 14 q-6 -7 -19 -6 q-14 1 -21 8 Z" fill="#2b2119"/>
+  </g>
+  <!-- student 2 -->
+  <g transform="translate(160,48)">
+    <ellipse cx="22" cy="74" rx="24" ry="7" fill="#000" opacity="0.06"/>
+    <path d="M4 42 q18 -12 36 0 l6 36 q-24 10 -48 0 Z" fill="#2b6cb0"/>
+    <circle cx="22" cy="26" r="17" fill="#8d5524"/>
+    <path d="M5 22 q5 -19 28 -16 q10 1 10 14 q-6 -7 -18 -6 q-13 1 -20 8 Z" fill="#1a120b"/>
+  </g>
+  <!-- laptop -->
+  <g transform="translate(140,86)">
+    <rect x="0" y="0" width="44" height="28" rx="4" fill="#2f3440"/>
+    <rect x="3" y="3" width="38" height="22" rx="2" fill="#9ec1e0"/>
+    <rect x="-8" y="28" width="60" height="6" rx="3" fill="#c9cdd4"/>
+  </g>
+  <!-- code brackets -->
+  <g fill="#e4573d" opacity="0.85">
+    <text x="44" y="34" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="700">&lt;/&gt;</text>
+  </g>
+</svg>
